@@ -3,6 +3,7 @@
 ## Project Structure
 
  - [`.editorconfig`](#editorconfig)
+ - [`.env`](#env)
  - [`.pre-commit-config.yaml`](#pre-commit-config-yaml)
  - [`pyproject.toml`](#pyproject-toml)
    - [`[tool.ruff]`](#tool-ruff)
@@ -146,6 +147,107 @@ indent_size = 2
 
 > **NOTE:**  
 > Segue a mesma lógico do bloco anterior, porém, para arquivos com extensões `.json`, `.y{a,}ml` e `.cwl` e `indentação de 2 espaços`.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--- ( .env ) --->
+
+---
+
+<div id="env"></div>
+
+## `.env`
+
+[.env](../.env)
+```bash
+# ==========================
+# CONFIGURAÇÃO DO POSTGRES
+# ==========================
+POSTGRES_DB=easy_rag_db                     # Nome do banco de dados a ser criado
+POSTGRES_USER=easyrag                       # Usuário do banco
+POSTGRES_PASSWORD=easyragpass               # Senha do banco
+POSTGRES_HOST=db                            # Nome do serviço (container) do banco no docker-compose
+POSTGRES_PORT=5432                          # Porta padrão do PostgreSQL
+
+# ==========================
+# CONFIGURAÇÃO DO REDIS
+# ==========================
+REDIS_HOST=redis                            # Nome do serviço (container) do Redis no docker-compose
+REDIS_PORT=6379                             # Porta padrão do Redis
+
+# ==========================
+# CONFIGURAÇÃO DJANGO
+# ==========================
+DJANGO_SECRET_KEY=djangopass                # Chave secreta do Django para criptografia e segurança
+DJANGO_DEBUG=True                           # True para desenvolvimento; False para produção
+DJANGO_ALLOWED_HOSTS=*                      # Hosts permitidos; * libera para qualquer host
+
+# ==========================
+# CONFIGURAÇÃO DO UVICORN
+# ==========================
+UVICORN_HOST=0.0.0.0                        # Escutar em todas as interfaces
+UVICORN_PORT=8000                           # Porta interna do app
+
+# ==========================
+# CONFIGURAÇÃO DO CELERY
+# ==========================
+
+# Celery / Redis
+CELERY_BROKER_URL=redis://redis:6379/0      # Onde as tasks vão ser enfileiradas (Redis service redis no compose)
+CELERY_RESULT_BACKEND=redis://redis:6379/1  # Onde o resultado das tasks será guardado (usar Redis DB 1 separado é comum)
+
+# Optional - For unit tests
+CELERY_TASK_ALWAYS_EAGER=False
+CELERY_TASK_EAGER_PROPAGATES=True
+```
+
 
 
 
