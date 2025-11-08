@@ -5,6 +5,7 @@
  - [`.editorconfig`](#editorconfig)
  - [`pyproject.toml`](#pyproject-toml)
    - [`[tool.ruff]`](#tool-ruff)
+   - [`[tool.pytest.ini_options]`](#tool-pytest-ini-options)
 <!---
 [WHITESPACE RULES]
 - Same topic = "10" Whitespace character.
@@ -306,6 +307,37 @@ quote-style = "double"
 
 
 
+
+
+
+
+
+
+
+
+---
+
+<div id="tool-pytest-ini-options"></div>
+
+## `[tool.pytest.ini_options]`
+
+```bash
+poetry add --group dev pytest@latest
+```
+
+O bloco `[tool.pytest.ini_options]` no `pyproject.toml` é usado para configurar o comportamento do Pytest, da mesma forma que você faria com `pytest.ini`, `setup.cfg` ou `tox.ini`:
+
+```toml
+[tool.pytest.ini_options]
+pythonpath = "."
+addopts = '-p no:warnings'
+```
+
+ - `pythonpath = "."`
+   - Onde o Pytest procurar arquivos Python para executar.
+   - Ou seja, a partir da `raiz (.)` do nosso projeto.
+ - `addopts = '-p no:warnings'`
+   - Para ter uma visualização mais limpa dos testes, caso alguma biblioteca exiba uma mensagem de warning, isso será suprimido pelo pytest.
 
 
 
