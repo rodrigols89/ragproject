@@ -13,6 +13,8 @@ dependencies = [
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.14.4"
 pytest = "^8.4.2"
+pre-commit = "^4.3.0"
+taskipy = "^1.14.1"
 
 [tool.ruff]
 line-length = 79
@@ -30,10 +32,28 @@ select = ['I', 'F', 'E', 'W', 'PL', 'PT']
 preview = true
 quote-style = "double"
 
-
-
-
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.taskipy.tasks]
+lint = 'ruff check'
+pre_format = 'ruff check --fix'
+format = 'ruff format'
+pre_test = 'task lint'
+test = 'pytest -s -x --cov=. -vv'
+post_test = 'coverage html'
+precommit = 'pre-commit run --all-files'
+server = 'python manage.py runserver'
+killserver = 'sudo kill -9 $(sudo lsof -t -i:8000)'  # Kill service/port 8000
+uvicorn = 'uvicorn core.asgi:application --reload --env-file .env'
+opendb = "docker exec -it postgres_db psql -U easyrag -d easy_rag_db"
+devcompose = 'docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d'
+prodcompose = 'docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d'
+cleancontainers = """
+docker stop $(docker ps -aq) 2>/dev/null || true &&
+docker rm $(docker ps -aq) 2>/dev/null || true &&
+docker rmi -f $(docker images -aq) 2>/dev/null || true &&
+docker volume rm $(docker volume ls -q) 2>/dev/null || true &&
+docker system prune -a --volumes -f
+"""
