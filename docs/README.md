@@ -4623,6 +4623,130 @@ class FileForm(forms.ModelForm):
 
 
 
+---
+
+<div id="update-workspace-view"></div>
+
+## `Criando (atualiando) a view "workspace" para listar pastas e arquivos`
+
+> Lembram que nós tinhamos uma view (ação) só para exibir a página `workspace.html`?
+
+[workspace/views.py](../workspace/views.py)
+```python
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+
+
+@login_required(login_url="/")
+def workspace(request):
+    return render(request, "pages/workspace.html")
+```
+
+Então, agora nós vamos atualizar essa view (ação) para:
+
+ - Listar as pastas e arquivos do usuário logado;
+ - Mostrar somente o conteúdo que pertence a ele (usando request.user);
+ - Servir como a página principal do Workspace, onde futuramente adicionaremos botões para *“criar pasta”* e *“fazer upload”*.
+
+> **NOTE:**  
+> Ela ainda não cria nem apaga nada — apenas exibe o que já existe no banco.
+
+[workspace/views.py](../workspace/views.py)
+```python
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+
+from .models import File, Folder
+
+
+@login_required(login_url="/")
+def workspace_home(request):
+    """
+    Página principal do workspace — exibe pastas e arquivos do usuário logado.
+    """
+    # Busca pastas raiz (sem pai) do usuário atual
+    folders = Folder.objects.filter(owner=request.user, parent__isnull=True)
+
+    # Busca arquivos que estão na raiz (sem pasta associada)
+    files = File.objects.filter(uploader=request.user, folder__isnull=True)
+
+    context = {
+        "folders": folders,
+        "files": files,
+    }
+
+    return render(request, "pages/workspace_home.html", context)
+```
+
+#### Alterações no nome da view
+
+As primeiras mudanças que nós fizemos foi:
+
+ - Trocar o nome da view de `workspace` para `workspace_home`;
+ - Trocar o nome do template de `workspace.html` para `workspace_home.html`;
+
+#### Alterações na ROTA/URL
+
+As ROTAS/URLs também precisam ser atualizadas:
+
+ - De:
+   - `path(route="workspace", view=workspace, name="workspace")`
+ - Para:
+   - `path(route="workspace", view=workspace_home, name="workspace_home")`
+
+#### Ligando os templates /home e /workspace_home novamente
+
+Nós tinhamos uma referência das views /home e /workspace_home, vamos ter que ligar isso de novo porque nós alteramos as ROTAS/URLs da view:
+
+[users/templates/pages/home.html](../users/templates/pages/home.html)
+```html
+<!-- Workspace Button -->
+<div class="p-2 border-b border-gray-700">
+    <a class="flex items-center justify-between p-2 hover:bg-gray-800 rounded"
+        href="{% url 'workspace_home' %}">
+        Workspace
+    </a>
+</div>
+```
+
+#### Algumas (não todas) expliações no código
+
+ - `Folder.objects.filter(owner=request.user, parent__isnull=True):`
+   - Busca apenas as pastas do usuário logado que não têm pai — ou seja, pastas raiz.
+ - `File.objects.filter(uploader=request.user, folder__isnull=True):`
+   - Busca arquivos enviados pelo mesmo usuário que não estão dentro de nenhuma pasta.
+ - `context:`
+   - Passa essas informações (listas de pastas e arquivos) para o template.
+ - `render(request, "pages/workspace_home.html", context)`
+   - Renderiza a página `pages/workspace_home.html` com esses dados.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
