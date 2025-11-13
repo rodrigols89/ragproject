@@ -4458,6 +4458,156 @@ docker compose exec web python manage.py migrate
 
 
 
+---
+
+<div id="workspace-forms"></div>
+
+## `Customizando os formulários FolderForm e FileForm`
+
+Aqui vamos implementar (customizar) os formulários `FolderForm` e `FileForm` do app workspace, responsáveis por coletar dados do usuário de maneira segura e validada.
+
+[forms.py](../workspace/forms.py)
+```python
+from django import forms
+from django.core.exceptions import ValidationError
+
+from .models import File, Folder
+
+
+# Exemplo simples de validador de tamanho (50 MB)
+def validate_file_size(value):
+    max_mb = 50
+    if value.size > max_mb * 1024 * 1024:
+        raise ValidationError(f"O arquivo não pode ser maior que {max_mb} MB.")
+
+
+class FolderForm(forms.ModelForm):
+    class Meta:
+        model = Folder
+        fields = ["name"]
+        widgets = {
+            "name": forms.TextInput(
+                attrs={
+                    "class": "block w-full px-3 py-2 border rounded",
+                    "placeholder": "Nome da pasta",
+                }
+            ),
+        }
+        error_messages = {
+            "name": {"required": "O nome da pasta é obrigatório."},
+        }
+
+    def clean_name(self):
+        name = self.cleaned_data.get("name", "").strip()
+        # opcional: garantir unicidade no mesmo parent/owner
+        if not name:
+            raise ValidationError("Nome inválido.")
+        return name
+
+
+class FileForm(forms.ModelForm):
+    class Meta:
+        model = File
+        fields = ["name", "file"]
+        widgets = {
+            "name": forms.TextInput(
+                attrs={
+                    "class": "block w-full px-3 py-2 border rounded",
+                    "placeholder": "Nome do arquivo (opcional)",
+                }
+            ),
+            "file": forms.ClearableFileInput(attrs={"class": "block w-full"}),
+        }
+        error_messages = {
+            "file": {"required": "Selecione um arquivo para enviar."},
+        }
+
+    # adiciona validação de tamanho
+    file = forms.FileField(validators=[validate_file_size])
+
+    def clean_name(self):
+        name = self.cleaned_data.get("name")
+        uploaded = self.cleaned_data.get("file")
+        if not name and uploaded:
+            # se o usuário não informou o name,
+            # preenche com o filename (sem path)
+            return uploaded.name
+        return name
+```
+
+#### Imports
+
+ - `from django.core.exceptions import ValidationError`
+   - Exceção usada para indicar erros de validação personalizados — quando levantada, o Django mostra a mensagem no formulário.
+
+#### Função validate_file_size()
+
+ - `def validate_file_size(value):`
+   - Define uma função de validação personalizada para arquivos enviados.
+   - `max_mb = 50` → limite de 50 megabytes.
+   - `if value.size > max_mb * 1024 * 1024:`
+     - Converte MB para bytes e verifica se o arquivo excede o limite.
+   - `raise ValidationError(...)`
+     - Caso ultrapasse o limite, o Django exibirá essa mensagem no formulário.
+
+#### Classe FolderForm(forms.ModelForm)
+
+ - `class FolderForm(forms.ModelForm):`
+   - Define um formulário automático baseado no modelo `Folder`.
+   - `model = Folder` → O formulário (modelo) que salvará registros na tabela de pastas.
+   - `fields = ["name"]` → Apenas o nome será preenchido pelo usuário.
+   - `widgets` → Personaliza o campo HTML gerado:
+     - `forms.TextInput` cria um `<input type="text">` com classes TailwindCSS para layout responsivo e bonito.
+   - `error_messages` → Mensagens de erro personalizadas mostradas no frontend quando o campo está vazio ou inválido.
+ - `clean_name()`
+   - É um método especial que o Django chama automaticamente ao validar o formulário.
+ - `.get("name", "").strip()` → remove espaços em branco no início/fim do nome.
+ - Se o nome for vazio, levanta *ValidationError("Nome inválido.")*.
+ - Retorna o nome limpo e validado.
+
+#### Classe FileForm(forms.ModelForm)
+
+ - `file = forms.FileField(validators=[validate_file_size])`
+   - Substitui o campo file do ModelForm por um novo campo FileField que usa o validador personalizado validate_file_size.
+ - Assim, qualquer arquivo maior que 50 MB gera erro antes mesmo de ser salvo.
+ - `error_messages` → Define mensagem customizada se o usuário tentar enviar sem selecionar arquivo.
+
+#### clean_name()
+
+ - `clean_name()`
+   - Garante que sempre exista um nome.
+ - Se o usuário não digitou nome manualmente, mas fez upload de um arquivo, o sistema usa uploaded.name como nome padrão (ex: documento.pdf).
+ - Retorna o nome final validado.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
