@@ -21,6 +21,7 @@
  - [`Criando o login com Google e GitHub`](#login-google-github)
  - [`Criando o app "workspace"`](#app-workspace)
  - [`Mapeando a rota home/ com a workspace/`](#home-to-workspace)
+ - [`Modelando o workspace: pastas (Folder) e arquivos (File)`](#folder-file)
  - [`.github/workflows`](#github-workflows)
  - [`Variáveis de Ambiente`](#env-vars)
  - [`Comandos Taskipy`](#taskipy-commands)
@@ -4194,6 +4195,225 @@ Por fim, vou mostrar como vai ficar nossos `home.html` e `workspace.html` (como 
         </aside>
 {% endblock %}
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="folder-file"></div>
+
+## `Modelando o workspace: pastas (Folder) e arquivos (File)`
+
+Nesta etapa vamos modelar o **núcleo do Workspace**:
+
+ - Pastas (Folder);
+ - Arquivos (File).
+
+As models permitem representar hierarquia de pastas (pastas-filhas), associar pastas e arquivos a um usuário (owner), e armazenar metadados importantes como data de criação e localização física do arquivo no MEDIA_ROOT. Também incluiremos uma função `upload_to()` para organizar os arquivos no disco por usuário e pasta.
+
+De início vamos começar modelando `workspace_upload_to()`:
+
+[models.py](../workspace/models.py)
+```python
+import os
+
+
+def workspace_upload_to(instance, filename):
+    """
+    Constrói o path onde o arquivo será salvo dentro de MEDIA_ROOT:
+    workspace/<user_id>/<folder_id_or_root>/<filename>
+    """
+    user_part = (
+        f"user_{instance.folder.owner.id}"
+        if instance.folder and instance.folder.owner
+        else f"user_{instance.uploader.id}"
+    )
+
+    folder_part = f"folder_{instance.folder.id}" if instance.folder else "root"
+
+    # limpa nome do arquivo por segurança básica
+    safe_name = os.path.basename(filename)
+
+    return os.path.join("workspace", user_part, folder_part, safe_name)
+```
+
+ - `def workspace_upload_to(instance, filename)`:
+   - Função usada pelo `FileField.upload_to` para gerar o caminho de armazenamento do arquivo.
+   - Recebe a instância do modelo e o nome original do arquivo.
+ - `user_part`
+   - Tenta extrair `folder.owner.id`; se não houver folder tenta `instance.uploader.id (fallback)`, formatando como `user_<id>`.
+   - Assim os arquivos ficam segregados (separados) por usuário.
+ - `folder_part`
+   - Se houver pasta associa `folder_<id>`, caso contrário usa "root" (arquivos na raiz do workspace do usuário).
+ - `safe_name = os.path.basename(filename)`
+   - Pega apenas o nome limpo do arquivo (proteção contra nomes com path).
+ - `return os.path.join("workspace", user_part, folder_part, safe_name)`
+   - Monta e retorna o caminho relativo dentro de `MEDIA_ROOT`.
+
+Agora vamos implementar (modelar) a classe `Folder` que vai ser responsável por representar um pasta de um usuário no workspace:
+
+[models.py](../workspace/models.py)
+```python
+import os
+
+from django.conf import settings
+from django.db import models
+from django.utils.translation import gettext_lazy as _
+
+
+class Folder(models.Model):
+    """
+    Representa uma pasta do usuário. Suporta hierarquia via parent (self-FK).
+    """
+
+    name = models.CharField(_("name"), max_length=255)
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="folders",
+    )
+
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="children",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = _("Folder")
+        verbose_name_plural = _("Folders")
+
+    def __str__(self):
+        return self.name
+```
+
+ - `from django.conf import settings`
+   - Traz a configuração do projeto (para referência ao modelo de usuário se necessário).
+ - `from django.db import models`
+   - importa os tipos de campo e base Model do Django.
+ - `from django.utils.translation import gettext_lazy as _`
+   -  Utilitário para poder marcar strings traduzíveis (bom para labels futuros).
+ - `name = models.CharField(_("name"), max_length=255)`
+   - Campo para nome da pasta;
+   - `_("name")` marca a label para tradução;
+   - Limite de 255 caracteres.
+ - `owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="folders")`
+   - Referência ao usuário dono da pasta;
+   - `on_delete=models.CASCADE` remove pastas se o usuário for excluído;
+   - `related_name="folders"` permite `user.folders.all()`.
+ - `parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="children")`
+   - Permite subpastas (estrutura em árvore).
+   - `null/blank` permitem pastas de topo;
+   - `related_name="children"` para acessar subpastas via `folder.children.all()`.
+   - `created_at = models.DateTimeField(auto_now_add=True)` Armazena quando a pasta foi criada automaticamente.
+ - `class Meta:`
+   - Metadados do modelo:
+     - `ordering = ["-created_at"]` — Ordena por data de criação descendente por padrão.
+     - `verbose_name` e `verbose_name_plural` para labels traduzíveis no admin.
+
+Por fim, vamos implementar (modelar) a classe `File` que vai ser responsável por representar um arquivo armazenado em uma pasta (Folder):
+
+[models.py](../workspace/models.py)
+```python
+class File(models.Model):
+    """
+    Representa um arquivo armazenado em uma pasta (Folder).
+    """
+
+    name = models.CharField(_("name"), max_length=255)
+
+    file = models.FileField(_("file"), upload_to=workspace_upload_to)
+
+    folder = models.ForeignKey(
+        Folder, on_delete=models.CASCADE, related_name="files"
+    )
+
+    uploader = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="uploaded_files",
+    )
+
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+        verbose_name = _("File")
+        verbose_name_plural = _("Files")
+
+    def __str__(self):
+        return self.name
+```
+
+ - `file = models.FileField(_("file"), upload_to=workspace_upload_to)`
+   - Campo que armazena o arquivo e usa a função `workspace_upload_to()` para decidir onde salvar fisicamente em `MEDIA_ROOT`.
+ - `folder = models.ForeignKey(Folder, on_delete=models.CASCADE, related_name="files")`
+   - Referência para a pasta que contém o arquivo;
+   - Ao deletar a pasta os arquivos também são deletados (CASCADE);
+   - `related_name="files"` permite `folder.files.all()`.
+ - `uploader = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="uploaded_files")`
+   - Usuário que fez o upload (útil para permissões e auditoria).
+ - `uploaded_at = models.DateTimeField(auto_now_add=True)`
+   - Timestamp do upload.
+
+Por fim, vamos criar as migrações do App `workspace` e do Banco de Dados geral:
+
+```bash
+docker compose exec web python manage.py makemigrations workspace
+```
+
+```bash
+docker compose exec web python manage.py migrate
+```
+
 
 
 
