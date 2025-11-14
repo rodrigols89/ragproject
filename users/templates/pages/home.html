@@ -7,7 +7,6 @@
 
         <!-- 🧱 Sidebar -->
         <aside class="w-64 bg-gray-900 text-white flex flex-col justify-between">
-
             <!-- Workspace Button -->
             <div class="p-2 border-b border-gray-700">
                 <a class="flex items-center justify-between p-2 hover:bg-gray-800 rounded"
@@ -15,7 +14,6 @@
                     Workspace
                 </a>
             </div>
-
             <!-- Logout -->
             <div class="p-4 border-t border-gray-700">
                 <a href="{% url 'logout' %}"
@@ -23,7 +21,17 @@
                    Sair
                 </a>
             </div>
-
         </aside>
 
+        <!-- 💼 Área principal da home -->
+        <main class="flex-1 p-8 overflow-y-auto">
+            <!-- Header -->
+            <header class="bg-white shadow px-6 py-4">
+                <h1 class="text-2xl font-semibold text-gray-800">
+                    Bem-vindo, {{ request.user.username }}!
+                </h1>
+            </header>
+        </main>
+
+    </div>
 {% endblock %}

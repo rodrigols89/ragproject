@@ -22,6 +22,9 @@
  - [`Criando o app "workspace"`](#app-workspace)
  - [`Mapeando a rota home/ com a workspace/`](#home-to-workspace)
  - [`Modelando o workspace: pastas (Folder) e arquivos (File)`](#folder-file)
+ - [`Customizando os formulários FolderForm e FileForm`](#workspace-forms)
+ - [`Criando (atualiando) a view "workspace" para listar pastas e arquivos`](#update-workspace-view)
+ - [`Criando a área principal dos templates /home.html e /workspace_home`](#main-area-home-workspace)
  - [`.github/workflows`](#github-workflows)
  - [`Variáveis de Ambiente`](#env-vars)
  - [`Comandos Taskipy`](#taskipy-commands)
@@ -4722,6 +4725,185 @@ Nós tinhamos uma referência das views /home e /workspace_home, vamos ter que l
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="main-area-home-workspace"></div>
+
+## `Criando a área principal dos templates /home.html e /workspace_home`
+
+Agora nós vamos atualizar os templates `/home.html` e `/workspace_home.html` para ficar mais próximo do visual que nós queremos, com:
+
+ - "Bem-vindo, {{ request.user.username }}!";
+ - Uma futura área que vai ser o chat (home.html);
+ - Uma futura área de pastas/arquivos (workspace_home.html).
+
+[users/templates/pages/home.html](../users/templates/pages/home.html)
+```html
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+    <div class="flex h-screen bg-gray-100">
+
+        <!-- 🧱 Sidebar -->
+        <aside class="w-64 bg-gray-900 text-white flex flex-col justify-between">
+            <!-- Workspace Button -->
+            <div class="p-2 border-b border-gray-700">
+                <a class="flex items-center justify-between p-2 hover:bg-gray-800 rounded"
+                    href="{% url 'workspace_home' %}">
+                    Workspace
+                </a>
+            </div>
+            <!-- Logout -->
+            <div class="p-4 border-t border-gray-700">
+                <a href="{% url 'logout' %}"
+                   class="block text-center text-red-400 hover:text-red-300">
+                   Sair
+                </a>
+            </div>
+        </aside>
+
+        <!-- 💼 Área principal do Home -->
+        <main class="flex-1 p-8 overflow-y-auto">
+            <!-- Header -->
+            <header class="bg-white shadow px-6 py-4">
+                <h1 class="text-2xl font-semibold text-gray-800">
+                    Bem-vindo, {{ request.user.username }}!
+                </h1>
+            </header>
+        </main>
+
+    </div>
+{% endblock %}
+```
+
+[workspace/templates/pages/workspace_home.html](../workspace/templates/pages/workspace_home.html)
+```html
+{% extends "base.html" %}
+
+{% block title %}Workspace{% endblock %}
+
+{% block content %}
+    <div class="flex h-screen bg-gray-100">
+
+        <!-- 🧱 Sidebar -->
+        <aside class="w-64 bg-gray-900 text-white flex flex-col justify-between">
+
+            <!-- Botão de voltar para Home -->
+            <div class="p-4 border-b border-gray-700">
+                <a href="{% url 'home' %}"
+                   class="block bg-gray-800 hover:bg-gray-700 text-center py-2 rounded">
+                    ← Voltar à Home
+                </a>
+            </div>
+
+            <!-- Logout -->
+            <div class="p-4 border-t border-gray-700">
+                <a href="{% url 'logout' %}"
+                   class="block text-center text-red-400 hover:text-red-300">
+                   Sair
+                </a>
+            </div>
+
+        </aside>
+
+        <!-- 💼 Área principal do Workspace -->
+        <main class="flex-1 p-8 overflow-y-auto">
+
+            <!-- Header -->
+            <header class="bg-white shadow px-6 py-4">
+                <h1 class="text-2xl font-semibold text-gray-800">
+                    Bem-vindo, {{ request.user.username }}!
+                </h1>
+            </header>
+
+            <!-- 📁 Listagem mista de pastas e arquivos -->
+            <section>
+                {% if folders or files %}
+                    <ul class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+
+                        <!-- Pastas -->
+                        {% for folder in folders %}
+                            <li class="bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer">
+                                <a href="?folder={{ folder.id }}" class="block">
+                                    <span class="text-gray-800 font-semibold flex items-center space-x-2">
+                                        <span>📁</span>
+                                        <span>{{ folder.name }}</span>
+                                    </span>
+                                    <p class="text-xs text-gray-500">
+                                        Criado em {{ folder.created_at|date:"d/m/Y H:i" }}
+                                    </p>
+                                </a>
+                            </li>
+                        {% endfor %}
+
+                        <!-- Arquivos -->
+                        {% for file in files %}
+                            <li class="bg-white border rounded-lg p-4 hover:shadow-md transition">
+                                <a href="{{ file.file.url }}" target="_blank" class="block">
+                                    <span class="text-gray-800 font-semibold flex items-center space-x-2">
+                                        <span>📄</span>
+                                        <span>{{ file.name }}</span>
+                                    </span>
+                                    <p class="text-xs text-gray-500">
+                                        Enviado em {{ file.uploaded_at|date:"d/m/Y H:i" }}
+                                    </p>
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="pt-4 text-gray-500 italic">Nenhum item encontrado neste diretório.</p>
+                {% endif %}
+            </section>
+        </main>
+
+    </div>
+{% endblock %}
+```
 
 
 
