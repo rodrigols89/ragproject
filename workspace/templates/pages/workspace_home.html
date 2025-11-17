@@ -36,45 +36,69 @@
                 </h1>
             </header>
 
-            <!-- 📁 Listagem mista de pastas e arquivos -->
-            <section>
-                {% if folders or files %}
-                    <ul class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <!-- 🧭 Breadcrumbs -->
+            <nav class="text-sm text-gray-600 my-4 flex items-center space-x-2">
 
-                        <!-- Pastas -->
-                        {% for folder in folders %}
-                            <li class="bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer">
-                                <a href="?folder={{ folder.id }}" class="block">
-                                    <span class="text-gray-800 font-semibold flex items-center space-x-2">
-                                        <span>📁</span>
-                                        <span>{{ folder.name }}</span>
-                                    </span>
-                                    <p class="text-xs text-gray-500">
-                                        Criado em {{ folder.created_at|date:"d/m/Y H:i" }}
-                                    </p>
-                                </a>
-                            </li>
-                        {% endfor %}
+                {% if current_folder %}
+                    <!-- Seta de voltar -->
+                    {% if breadcrumbs|length > 1 %}
+                        {% with prev_folder=breadcrumbs|slice:"-2:-1"|first %}
+                            <a href="?folder={{ prev_folder.id }}" class="text-blue-600 hover:underline">← Voltar</a>
+                        {% endwith %}
+                    {% else %}
+                        <a href="{% url 'workspace_home' %}" class="text-blue-600 hover:underline">← Voltar à raiz</a>
+                    {% endif %}
 
-                        <!-- Arquivos -->
-                        {% for file in files %}
-                            <li class="bg-white border rounded-lg p-4 hover:shadow-md transition">
-                                <a href="{{ file.file.url }}" target="_blank" class="block">
-                                    <span class="text-gray-800 font-semibold flex items-center space-x-2">
-                                        <span>📄</span>
-                                        <span>{{ file.name }}</span>
-                                    </span>
-                                    <p class="text-xs text-gray-500">
-                                        Enviado em {{ file.uploaded_at|date:"d/m/Y H:i" }}
-                                    </p>
-                                </a>
-                            </li>
-                        {% endfor %}
-                    </ul>
+                    <!-- Caminho de pastas -->
+                    <span>/</span>
+                    {% for folder in breadcrumbs %}
+                        {% if not forloop.last %}
+                            <a href="?folder={{ folder.id }}" class="hover:underline">{{ folder.name }}</a>
+                            <span>/</span>
+                        {% else %}
+                            <span class="font-semibold">{{ folder.name }}</span>
+                        {% endif %}
+                    {% endfor %}
                 {% else %}
-                    <p class="pt-4 text-gray-500 italic">Nenhum item encontrado neste diretório.</p>
+                    <span class="text-gray-400 italic">📁 Raiz</span>
                 {% endif %}
-            </section>
+            </nav>
+
+            <!-- 📁 Listagem mista de pastas e arquivos -->
+            {% if folders or files %}
+                <ul class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+
+                    <!-- Pastas -->
+                    {% for folder in folders %}
+                        <li class="bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer">
+                            <a href="?folder={{ folder.id }}" class="block">
+                                <span class="text-gray-800 font-semibold flex items-center space-x-2">
+                                    <span>📁</span>
+                                    <span>{{ folder.name }}</span>
+                                </span>
+                            </a>
+                        </li>
+                    {% endfor %}
+
+                    <!-- Arquivos -->
+                    {% for file in files %}
+                        <li class="bg-white border rounded-lg p-4 hover:shadow-md transition">
+                            <a href="{{ file.file.url }}" target="_blank" class="block">
+                                <span class="text-gray-800 font-semibold flex items-center space-x-2">
+                                    <span>📄</span>
+                                    <span>{{ file.name }}</span>
+                                </span>
+                                <p class="text-xs text-gray-500">
+                                    Enviado em {{ file.uploaded_at|date:"d/m/Y H:i" }}
+                                </p>
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="pt-4 text-gray-500 italic">Nenhum item encontrado neste diretório.</p>
+            {% endif %}
+
         </main>
 
     </div>

@@ -21,10 +21,10 @@
  - [`Criando o login com Google e GitHub`](#login-google-github)
  - [`Criando o app "workspace"`](#app-workspace)
  - [`Mapeando a rota home/ com a workspace/`](#home-to-workspace)
- - [`Modelando o workspace: pastas (Folder) e arquivos (File)`](#folder-file)
+ - [`Modelando o workspace: Pastas (Folders) e Arquivos (Files)`](#folder-file)
  - [`Customizando os formulários FolderForm e FileForm`](#workspace-forms)
- - [`Criando (atualiando) a view "workspace" para listar pastas e arquivos`](#update-workspace-view)
- - [`Criando a área principal dos templates /home.html e /workspace_home`](#main-area-home-workspace)
+ - [`Atualizando a view (ação) para exibir as pastas e arquivos`](#update-view-to-list-folders-and-files)
+ - [`Criando a "Área Principal" dos templates /home.html e /workspace_home`](#main-area-home-workspace)
  - [`.github/workflows`](#github-workflows)
  - [`Variáveis de Ambiente`](#env-vars)
  - [`Comandos Taskipy`](#taskipy-commands)
@@ -4109,16 +4109,16 @@ Agora nós vamos criar uma URL específica para a rota `/workspace/`:
 ```python
 from django.urls import path
 
-from .views import workspace
+from .views import workspace_home
 
 urlpatterns = [
-    path(route="workspace", view=workspace, name="workspace"),
+    path(route="workspace_home", view=workspace_home, name="workspace_home"),
 ]
 ```
 
 Agora nós vamos precisar criar uma view (ação) para:
 
-- Quando alguém clicar em Workspace no botão (link) `home.html`, seja redirecionado para `workspace.html`;
+- Quando alguém clicar em Workspace no botão (link) `home.html`, seja redirecionado para `workspace_home.html`;
  - E essa pessoa também tem que estar logada para acessar essa rota.
 
 [workspace/views.py](../workspace/views.py)
@@ -4128,8 +4128,8 @@ from django.shortcuts import render
 
 
 @login_required(login_url="/")
-def workspace(request):
-    return render(request, "pages/workspace.html")
+def workspace_home(request):
+    return render(request, "pages/workspace_home.html")
 ```
 
 Por fim, vou mostrar como vai ficar nossos `home.html` e `workspace.html` (como HTML e CSS não é nosso foco vamos ignorar isso por enquanto):
@@ -4149,7 +4149,7 @@ Por fim, vou mostrar como vai ficar nossos `home.html` e `workspace.html` (como 
             <!-- Workspace Button -->
             <div class="p-2 border-b border-gray-700">
                 <a class="flex items-center justify-between p-2 hover:bg-gray-800 rounded"
-                    href="{% url 'workspace' %}">
+                    href="{% url 'workspace_home' %}">
                     Workspace
                 </a>
             </div>
@@ -4167,7 +4167,7 @@ Por fim, vou mostrar como vai ficar nossos `home.html` e `workspace.html` (como 
 {% endblock %}
 ```
 
-[workspace/templates/pages/workspace.html](../workspace/templates/pages/workspace.html)
+[workspace/templates/pages/workspace_home.html](../workspace/templates/pages/workspace_home.html)
 ```html
 {% extends "base.html" %}
 
@@ -4183,7 +4183,7 @@ Por fim, vou mostrar como vai ficar nossos `home.html` e `workspace.html` (como 
             <div class="p-2 border-b border-gray-700">
                 <a class="flex items-center justify-between p-2 hover:bg-gray-800 rounded"
                     href="{% url 'home' %}">
-                    Home
+                    ← Voltar à Home
                 </a>
             </div>
 
@@ -4247,20 +4247,23 @@ Por fim, vou mostrar como vai ficar nossos `home.html` e `workspace.html` (como 
 
 <div id="folder-file"></div>
 
-## `Modelando o workspace: pastas (Folder) e arquivos (File)`
+## `Modelando o workspace: Pastas (Folders) e Arquivos (Files)`
 
 Nesta etapa vamos modelar o **núcleo do Workspace**:
 
  - Pastas (Folder);
  - Arquivos (File).
-
-As models permitem representar hierarquia de pastas (pastas-filhas), associar pastas e arquivos a um usuário (owner), e armazenar metadados importantes como data de criação e localização física do arquivo no MEDIA_ROOT. Também incluiremos uma função `upload_to()` para organizar os arquivos no disco por usuário e pasta.
+ - **NOTE:** Também incluiremos uma função `upload_to()` para organizar os arquivos no disco por usuário e pasta.
 
 De início vamos começar modelando `workspace_upload_to()`:
 
 [models.py](../workspace/models.py)
 ```python
 import os
+
+from django.conf import settings
+from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 def workspace_upload_to(instance, filename):
@@ -4280,30 +4283,6 @@ def workspace_upload_to(instance, filename):
     safe_name = os.path.basename(filename)
 
     return os.path.join("workspace", user_part, folder_part, safe_name)
-```
-
- - `def workspace_upload_to(instance, filename)`:
-   - Função usada pelo `FileField.upload_to` para gerar o caminho de armazenamento do arquivo.
-   - Recebe a instância do modelo e o nome original do arquivo.
- - `user_part`
-   - Tenta extrair `folder.owner.id`; se não houver folder tenta `instance.uploader.id (fallback)`, formatando como `user_<id>`.
-   - Assim os arquivos ficam segregados (separados) por usuário.
- - `folder_part`
-   - Se houver pasta associa `folder_<id>`, caso contrário usa "root" (arquivos na raiz do workspace do usuário).
- - `safe_name = os.path.basename(filename)`
-   - Pega apenas o nome limpo do arquivo (proteção contra nomes com path).
- - `return os.path.join("workspace", user_part, folder_part, safe_name)`
-   - Monta e retorna o caminho relativo dentro de `MEDIA_ROOT`.
-
-Agora vamos implementar (modelar) a classe `Folder` que vai ser responsável por representar um pasta de um usuário no workspace:
-
-[models.py](../workspace/models.py)
-```python
-import os
-
-from django.conf import settings
-from django.db import models
-from django.utils.translation import gettext_lazy as _
 
 
 class Folder(models.Model):
@@ -4336,36 +4315,8 @@ class Folder(models.Model):
 
     def __str__(self):
         return self.name
-```
 
- - `from django.conf import settings`
-   - Traz a configuração do projeto (para referência ao modelo de usuário se necessário).
- - `from django.db import models`
-   - importa os tipos de campo e base Model do Django.
- - `from django.utils.translation import gettext_lazy as _`
-   -  Utilitário para poder marcar strings traduzíveis (bom para labels futuros).
- - `name = models.CharField(_("name"), max_length=255)`
-   - Campo para nome da pasta;
-   - `_("name")` marca a label para tradução;
-   - Limite de 255 caracteres.
- - `owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="folders")`
-   - Referência ao usuário dono da pasta;
-   - `on_delete=models.CASCADE` remove pastas se o usuário for excluído;
-   - `related_name="folders"` permite `user.folders.all()`.
- - `parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="children")`
-   - Permite subpastas (estrutura em árvore).
-   - `null/blank` permitem pastas de topo;
-   - `related_name="children"` para acessar subpastas via `folder.children.all()`.
-   - `created_at = models.DateTimeField(auto_now_add=True)` Armazena quando a pasta foi criada automaticamente.
- - `class Meta:`
-   - Metadados do modelo:
-     - `ordering = ["-created_at"]` — Ordena por data de criação descendente por padrão.
-     - `verbose_name` e `verbose_name_plural` para labels traduzíveis no admin.
 
-Por fim, vamos implementar (modelar) a classe `File` que vai ser responsável por representar um arquivo armazenado em uma pasta (Folder):
-
-[models.py](../workspace/models.py)
-```python
 class File(models.Model):
     """
     Representa um arquivo armazenado em uma pasta (Folder).
@@ -4396,18 +4347,56 @@ class File(models.Model):
         return self.name
 ```
 
- - `file = models.FileField(_("file"), upload_to=workspace_upload_to)`
-   - Campo que armazena o arquivo e usa a função `workspace_upload_to()` para decidir onde salvar fisicamente em `MEDIA_ROOT`.
- - `folder = models.ForeignKey(Folder, on_delete=models.CASCADE, related_name="files")`
-   - Referência para a pasta que contém o arquivo;
-   - Ao deletar a pasta os arquivos também são deletados (CASCADE);
-   - `related_name="files"` permite `folder.files.all()`.
- - `uploader = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="uploaded_files")`
-   - Usuário que fez o upload (útil para permissões e auditoria).
- - `uploaded_at = models.DateTimeField(auto_now_add=True)`
-   - Timestamp do upload.
+ - **Imports:**
+   - `from django.conf import settings`
+     - Traz a configuração do projeto (para referência ao modelo de usuário se necessário).
+   - `from django.db import models`
+     - importa os tipos de campo e base Model do Django.
+   - `from django.utils.translation import gettext_lazy as _`
+     -  Utilitário para poder marcar strings traduzíveis (bom para labels futuros).
+ - **def workspace_upload_to(instance, filename):**
+   - Função usada pelo `FileField.upload_to` para gerar o caminho de armazenamento do arquivo.
+   - Recebe a instância do modelo e o nome original do arquivo (instance, filename).
+   - `user_part`
+     - Tenta extrair `folder.owner.id`; se não houver folder tenta `instance.uploader.id (fallback)`, formatando como `user_<id>`.
+     - Assim os arquivos ficam segregados (separados) por usuário.
+   - `folder_part`
+     - Se houver pasta associa `folder_<id>`, caso contrário usa "root" (arquivos na raiz do workspace do usuário).
+   - `safe_name = os.path.basename(filename)`
+     - Pega apenas o nome limpo do arquivo (proteção contra nomes com path).
+   - `return os.path.join("workspace", user_part, folder_part, safe_name)`
+     - Monta e retorna o caminho relativo dentro de `MEDIA_ROOT`.
+ - **class Folder(models.Model):**
+   - `name = models.CharField(_("name"), max_length=255)`
+     - Campo para nome da pasta;
+     - `_("name")` marca a label para tradução;
+     - Limite de 255 caracteres.
+   - `owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="folders")`
+     - Referência ao usuário dono da pasta;
+     - `on_delete=models.CASCADE` remove pastas se o usuário for excluído;
+     - `related_name="folders"` permite `user.folders.all()`.
+   - `parent = models.ForeignKey("self", null=True, blank=True, on_delete=models.CASCADE, related_name="children")`
+     - Permite subpastas (estrutura em árvore).
+     - `null/blank` permitem pastas de topo;
+     - `related_name="children"` para acessar subpastas via `folder.children.all()`.
+     - `created_at = models.DateTimeField(auto_now_add=True)` Armazena quando a pasta foi criada automaticamente.
+   - `class Meta:`
+     - Metadados do modelo:
+       - `ordering = ["-created_at"]` — Ordena por data de criação descendente por padrão.
+       - `verbose_name` e `verbose_name_plural` para labels traduzíveis no admin.
+ - **class File(models.Model):**
+   - `file = models.FileField(_("file"), upload_to=workspace_upload_to)`
+     - Campo que armazena o arquivo e usa a função `workspace_upload_to()` para decidir onde salvar fisicamente em `MEDIA_ROOT`.
+   - `folder = models.ForeignKey(Folder, on_delete=models.CASCADE, related_name="files")`
+     - Referência para a pasta que contém o arquivo;
+     - Ao deletar a pasta os arquivos também são deletados (CASCADE);
+     - `related_name="files"` permite `folder.files.all()`.
+   - `uploader = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="uploaded_files")`
+     - Usuário que fez o upload (útil para permissões e auditoria).
+   - `uploaded_at = models.DateTimeField(auto_now_add=True)`
+     - Timestamp do upload.
 
-Por fim, vamos criar as migrações do App `workspace` e do Banco de Dados geral:
+Agora, vamos criar as migrações do App `workspace` e do Banco de Dados geral:
 
 ```bash
 docker compose exec web python manage.py makemigrations workspace
@@ -4415,6 +4404,110 @@ docker compose exec web python manage.py makemigrations workspace
 
 ```bash
 docker compose exec web python manage.py migrate
+```
+
+> **Mas como eu posso testar se está funcionando manualmente?**
+
+Primeiro, nós podemos adicionar (registrar) essas modelagens no nosso [admin.py](../workspace/admin.py):
+
+[admin.py](../workspace/admin.py)
+```python
+from django.contrib import admin
+from .models import Folder, File
+
+
+admin.site.register(Folder)
+admin.site.register(File)
+```
+
+Agora se você atualizar a página no seu Django Admin verá:
+
+![img](images/workspace-01.png)  
+
+Ou seja, o projeto `workspace` tem os modelos:
+
+ - `Files`;
+ - `Folders`.
+
+Agora, podemos criar alguns folders e adicionar alguns arquivos:
+
+![img](images/workspace-00.png)  
+![img](images/workspace-02.png)  
+![img](images/workspace-03.png)  
+
+Vejam que:
+
+ - **As *Pastas (Folders)* seguem uma estrutura em árvore:**
+   - Tem que ter um dono (`owner`);
+   - Se tiver uma pasta pai (`parent`) selecione ela:
+     - Se não tiver essa pasta vai para a raiz.
+   - **NOTE:** Também é obrigatório escolher um nome para a pasta.
+ - **Os *Arquivos (Files)* estão sendo relacionados:**
+   - Uma *Pasta (Folder)*;
+   - Um *Usuário (Uploader)*.
+   - **NOTE:** Também é obrigatório escolher um nome para o arquivo.
+
+> **Onde estão essas pastas/arquivos no nosso projeto?**  
+> Em `media/` e separado por usuarios.
+
+![img](images/workspace-04.png)  
+
+> **Mas esses dados também estão sendo salvos no Banco de Dados (PostgreSQL)?**
+
+Vamos abrir nosso Banco de Dados PostgreSQL para verificar:
+
+```bash
+task opendb
+```
+
+Agora vamos listar as tabelas:
+
+```bash
+\dt+
+```
+
+**OUTPUT:**
+```bash
+                                                 List of relations
+ Schema |             Name              | Type  |  Owner  | Persistence | Access method |    Size    | Description
+--------+-------------------------------+-------+---------+-------------+---------------+------------+-------------
+ public | workspace_file                | table | easyrag | permanent   | heap          | 8192 bytes |
+ public | workspace_folder              | table | easyrag | permanent   | heap          | 8192 bytes |
+```
+
+> **NOTE:**  
+> Vejam que nós temos as tabelas `workspace_file` e `workspace_folder`.
+
+Por fim, vamos listar quantas *Pastas (Folders)* e *Arquivos (Files)* temos cadastrados no Banco de Dados:
+
+**Lista quantas pastas (folders) temos cadastradas:**
+```bash
+select * from workspace_folder;
+
+
+
+ id |    name     |          created_at           | owner_id | parent_id
+----+-------------+-------------------------------+----------+-----------
+  1 | Dota2       | 2025-11-16 20:25:52.853803+00 |        1 |
+  2 | Mathematics | 2025-11-16 20:26:01.732653+00 |        2 |
+  3 | RAG         | 2025-11-16 20:26:13.053282+00 |        1 |
+  4 | Physics     | 2025-11-16 20:26:22.719736+00 |        1 |
+(4 rows)
+```
+
+**Lista quantos arquivos (files) temos cadastrados:**
+```bash
+select * from workspace_file;
+
+
+
+ id |        name         |                                                 file                                                 |          uploaded_at          | uploader_id | folder_id
+----+---------------------+------------------------------------------------------------------------------------------------------+-------------------------------+-------------+-----------
+  1 | Physics - Exercises | workspace/user_1/folder_4/Physics.pdf                                                                | 2025-11-16 20:34:30.137585+00 |           1 |         4
+  2 | Math - Exercises    | workspace/user_2/folder_2/Math.pdf                                                                   | 2025-11-16 20:35:32.587887+00 |           1 |         2
+  3 | RAG - Exercises     | workspace/user_1/folder_3/RAG_Retrieval_Augmented_Generation_Aplicado_à_Ciência_de_Dados.pdf         | 2025-11-16 20:39:10.916045+00 |           1 |         3
+  4 | Dota2 - DRL         | workspace/user_1/folder_1/Applications_of_Machine_Learning_in_Dota_2_-_Literature_Review_pcINztR.pdf | 2025-11-16 20:41:56.880436+00 |           1 |         1
+(4 rows)
 ```
 
 
@@ -4467,7 +4560,18 @@ docker compose exec web python manage.py migrate
 
 ## `Customizando os formulários FolderForm e FileForm`
 
-Aqui vamos implementar (customizar) os formulários `FolderForm` e `FileForm` do app workspace, responsáveis por coletar dados do usuário de maneira segura e validada.
+Agora vamos implementar (customizar) os formulários `FolderForm` e `FileForm` do app workspace, responsáveis por coletar dados do usuário de maneira segura e validada.
+
+> **Mas isso é realmente necessário?**
+
+Para entender isso vamos começar com um resumo de diferença entre as modelagens `Folder` e `File` e os formulários (customizados) `FolderForm` e `FileForm`:
+
+| Parte                                | O que faz?                                                           | Salva no banco?                        | Onde é usada?                          |
+| ------------------------------------ | -------------------------------------------------------------------- | -------------------------------------- | -------------------------------------- |
+| **Models** (`Folder`, `File`)        | Define a estrutura das tabelas no banco e como os dados são salvos.  | Sim                                    | Banco de dados (via ORM)               |
+| **Forms** (`FolderForm`, `FileForm`) | Define como os dados são capturados e validados na interface (HTML). | Não diretamente (precisa de `.save()`) | Interface do usuário (views/templates) |
+
+Bem, entendendo isso vamos partir para a implementação (customização) dos nossos formulários:
 
 [forms.py](../workspace/forms.py)
 ```python
@@ -4538,49 +4642,38 @@ class FileForm(forms.ModelForm):
         return name
 ```
 
-#### Imports
-
- - `from django.core.exceptions import ValidationError`
-   - Exceção usada para indicar erros de validação personalizados — quando levantada, o Django mostra a mensagem no formulário.
-
-#### Função validate_file_size()
-
- - `def validate_file_size(value):`
-   - Define uma função de validação personalizada para arquivos enviados.
-   - `max_mb = 50` → limite de 50 megabytes.
-   - `if value.size > max_mb * 1024 * 1024:`
-     - Converte MB para bytes e verifica se o arquivo excede o limite.
-   - `raise ValidationError(...)`
-     - Caso ultrapasse o limite, o Django exibirá essa mensagem no formulário.
-
-#### Classe FolderForm(forms.ModelForm)
-
- - `class FolderForm(forms.ModelForm):`
+ - **Imports:**
+   - `from django.core.exceptions import ValidationError`
+     - Exceção usada para indicar erros de validação personalizados — quando levantada, o Django mostra a mensagem no formulário.
+ - **validate_file_size():**
+   - `def validate_file_size(value):`
+     - Define uma função de validação personalizada para arquivos enviados.
+     - `max_mb = 50` → limite de 50 megabytes.
+     - `if value.size > max_mb * 1024 * 1024:`
+       - Converte MB para bytes e verifica se o arquivo excede o limite.
+     - `raise ValidationError(...)`
+       - Caso ultrapasse o limite, o Django exibirá essa mensagem no formulário.
+ - **class FolderForm(forms.ModelForm):**
    - Define um formulário automático baseado no modelo `Folder`.
    - `model = Folder` → O formulário (modelo) que salvará registros na tabela de pastas.
    - `fields = ["name"]` → Apenas o nome será preenchido pelo usuário.
    - `widgets` → Personaliza o campo HTML gerado:
      - `forms.TextInput` cria um `<input type="text">` com classes TailwindCSS para layout responsivo e bonito.
    - `error_messages` → Mensagens de erro personalizadas mostradas no frontend quando o campo está vazio ou inválido.
- - `clean_name()`
-   - É um método especial que o Django chama automaticamente ao validar o formulário.
- - `.get("name", "").strip()` → remove espaços em branco no início/fim do nome.
- - Se o nome for vazio, levanta *ValidationError("Nome inválido.")*.
- - Retorna o nome limpo e validado.
-
-#### Classe FileForm(forms.ModelForm)
-
- - `file = forms.FileField(validators=[validate_file_size])`
-   - Substitui o campo file do ModelForm por um novo campo FileField que usa o validador personalizado validate_file_size.
- - Assim, qualquer arquivo maior que 50 MB gera erro antes mesmo de ser salvo.
- - `error_messages` → Define mensagem customizada se o usuário tentar enviar sem selecionar arquivo.
-
-#### clean_name()
-
- - `clean_name()`
-   - Garante que sempre exista um nome.
- - Se o usuário não digitou nome manualmente, mas fez upload de um arquivo, o sistema usa uploaded.name como nome padrão (ex: documento.pdf).
- - Retorna o nome final validado.
+   - **clean_name():**
+     - É um método especial que o Django chama automaticamente ao validar o formulário.
+     - `.get("name", "").strip()` → remove espaços em branco no início/fim do nome.
+     - Se o nome for vazio, levanta *ValidationError("Nome inválido.")*.
+     - Retorna o nome limpo e validado.
+ - **class FileForm(forms.ModelForm):**
+   - `file = forms.FileField(validators=[validate_file_size])`
+     - Substitui o campo file do ModelForm por um novo campo FileField que usa o validador personalizado validate_file_size.
+   - Assim, qualquer arquivo maior que 50 MB gera erro antes mesmo de ser salvo.
+   - `error_messages` → Define mensagem customizada se o usuário tentar enviar sem selecionar arquivo.
+   - **clean_name()**
+     - Garante que sempre exista um nome.
+     - Se o usuário não digitou nome manualmente, mas fez upload de um arquivo, o sistema usa uploaded.name como nome padrão (ex: documento.pdf).
+     - Retorna o nome final validado.
 
 
 
@@ -4628,11 +4721,11 @@ class FileForm(forms.ModelForm):
 
 ---
 
-<div id="update-workspace-view"></div>
+<div id="update-view-to-list-folders-and-files"></div>
 
-## `Criando (atualiando) a view "workspace" para listar pastas e arquivos`
+## `Atualizando a view (ação) para exibir as pastas e arquivos`
 
-> Lembram que nós tinhamos uma view (ação) só para exibir a página `workspace.html`?
+> Lembram que nós tinhamos uma view (ação) só para exibir a página `workspace_home.html`?
 
 [workspace/views.py](../workspace/views.py)
 ```python
@@ -4641,8 +4734,8 @@ from django.shortcuts import render
 
 
 @login_required(login_url="/")
-def workspace(request):
-    return render(request, "pages/workspace.html")
+def workspace_home(request):
+    return render(request, "pages/workspace_home.html")
 ```
 
 Então, agora nós vamos atualizar essa view (ação) para:
@@ -4651,77 +4744,127 @@ Então, agora nós vamos atualizar essa view (ação) para:
  - Mostrar somente o conteúdo que pertence a ele (usando request.user);
  - Servir como a página principal do Workspace, onde futuramente adicionaremos botões para *“criar pasta”* e *“fazer upload”*.
 
-> **NOTE:**  
-> Ela ainda não cria nem apaga nada — apenas exibe o que já existe no banco.
-
-[workspace/views.py](../workspace/views.py)
+[views.py](../workspace/views.py)
 ```python
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 
 from .models import File, Folder
 
 
 @login_required(login_url="/")
 def workspace_home(request):
-    """
-    Página principal do workspace — exibe pastas e arquivos do usuário logado.
-    """
-    # Busca pastas raiz (sem pai) do usuário atual
-    folders = Folder.objects.filter(owner=request.user, parent__isnull=True)
+    folder_id = request.GET.get("folder")
 
-    # Busca arquivos que estão na raiz (sem pasta associada)
-    files = File.objects.filter(uploader=request.user, folder__isnull=True)
+    # 📁 1. Se o usuário clicou em alguma pasta
+    if folder_id:
+        current_folder = get_object_or_404(
+            Folder, id=folder_id, owner=request.user
+        )
+
+        # Subpastas da pasta atual
+        folders = Folder.objects.filter(parent=current_folder)
+
+        # Arquivos da pasta atual
+        files = File.objects.filter(folder=current_folder)
+
+        # Breadcrumbs (caminho completo)
+        breadcrumbs = []
+        temp = current_folder
+        while temp:
+            breadcrumbs.append(temp)
+            temp = temp.parent
+        breadcrumbs.reverse()
+
+    else:
+        # 📁 2. Estamos no nível raiz
+        current_folder = None
+
+        folders = Folder.objects.filter(
+            owner=request.user, parent__isnull=True
+        )
+
+        files = File.objects.filter(uploader=request.user, folder__isnull=True)
+
+        breadcrumbs = []  # Raiz não tem caminho
 
     context = {
+        "current_folder": current_folder,
         "folders": folders,
         "files": files,
+        "breadcrumbs": breadcrumbs,
     }
 
     return render(request, "pages/workspace_home.html", context)
 ```
 
-#### Alterações no nome da view
+**Explicação das principais partes do código:**
 
-As primeiras mudanças que nós fizemos foi:
+ - **Imports:**
+   - `from django.contrib.auth.decorators import login_required`
+     - Um decorator que exige que o usuário esteja autenticado para acessar a view. Se não estiver logado, será redirecionado para a URL configurada em login_url.
+   - `from django.shortcuts import get_object_or_404, render`
+     - `render`
+       - Função usada para renderizar um template HTML com um contexto (dados enviados para o template).
+     - `get_object_or_404`
+       - Busca um objeto no banco de dados; se não encontrar, retorna erro *404*.
+   - `from .models import File, Folder`
+     - `File` e `Folder`: São os modelos que representam arquivos e pastas no banco de dados.
+ - **def workspace_home(request):**
+   - `folder_id = request.GET.get("folder")`
+     - Extrai o parâmetro folder da URL *(ex: .../workspace?folder=5)*, que indica que o usuário clicou em uma pasta específica.
+     - Se não houver esse parâmetro, `folder_id` será `None`.
+   - `if folder_id:`
+     - `if folder_id:` Esse bloco será executado se o ID da pasta estiver presente na URL (ou seja, o usuário entrou em uma pasta).
+     - `current_folder = get_object_or_404(Folder, id=folder_id, owner=request.user)`
+       - Busca no banco a pasta com o ID fornecido que pertence ao usuário logado.
+       - Se o ID não existir ou a pasta não for do usuário, retorna 404.
+     - `folders = Folder.objects.filter(parent=current_folder)`
+       - Busca todas as subpastas dentro da pasta atual.
+     - `files = File.objects.filter(folder=current_folder)`
+       - Busca todos os arquivos contidos dentro desta pasta.
+   - `else:`
+     - `else:` Executado quando o usuário está no nível raiz (sem entrar em nenhuma pasta).
+     - `current_folder = None` → Como o usuário não está em nenhuma pasta.
+     - `folders` → Busca apenas as pastas do usuário localizadas na raiz `(parent__isnull=True)`.
+     - `files` → Busca arquivos na raiz (sem pasta associada).
+     - `breadcrumbs = []` → Lista vazia, pois na raiz não há caminho.
+ - **return render(request, "pages/workspace_home.html", context)**
+   - Renderiza o arquivo `pages/workspace_home.html` usando o contexto com dados do *workspace*.
 
- - Trocar o nome da view de `workspace` para `workspace_home`;
- - Trocar o nome do template de `workspace.html` para `workspace_home.html`;
-
-#### Alterações na ROTA/URL
-
-As ROTAS/URLs também precisam ser atualizadas:
-
- - De:
-   - `path(route="workspace", view=workspace, name="workspace")`
- - Para:
-   - `path(route="workspace", view=workspace_home, name="workspace_home")`
-
-#### Ligando os templates /home e /workspace_home novamente
-
-Nós tinhamos uma referência das views /home e /workspace_home, vamos ter que ligar isso de novo porque nós alteramos as ROTAS/URLs da view:
-
-[users/templates/pages/home.html](../users/templates/pages/home.html)
-```html
-<!-- Workspace Button -->
-<div class="p-2 border-b border-gray-700">
-    <a class="flex items-center justify-between p-2 hover:bg-gray-800 rounded"
-        href="{% url 'workspace_home' %}">
-        Workspace
-    </a>
-</div>
+**🧭 Breadcrumbs (caminho completo)**
+```python
+breadcrumbs = []
+temp = current_folder
+while temp:
+    breadcrumbs.append(temp)
+    temp = temp.parent
+breadcrumbs.reverse()
 ```
 
-#### Algumas (não todas) expliações no código
+ - `breadcrumbs = []` → Cria uma lista vazia para armazenar o caminho até a pasta atual.
+ - `temp = current_folder` → Começa com a pasta atual.
+ - `while temp:` → Loop para caminhar pela hierarquia de pastas.
+   - `breadcrumbs.append(temp)` → Adiciona a pasta atual à lista.
+   - `temp = temp.parent` → Sobe um nível na hierarquia (pasta pai).
+ - `breadcrumbs.reverse()` → Inverte a lista para mostrar da raiz até a pasta atual (ordem amigável).
 
- - `Folder.objects.filter(owner=request.user, parent__isnull=True):`
-   - Busca apenas as pastas do usuário logado que não têm pai — ou seja, pastas raiz.
- - `File.objects.filter(uploader=request.user, folder__isnull=True):`
-   - Busca arquivos enviados pelo mesmo usuário que não estão dentro de nenhuma pasta.
- - `context:`
-   - Passa essas informações (listas de pastas e arquivos) para o template.
- - `render(request, "pages/workspace_home.html", context)`
-   - Renderiza a página `pages/workspace_home.html` com esses dados.
+**📦 Passando os dados para o template**
+```python
+context = {
+    "current_folder": current_folder,
+    "folders": folders,
+    "files": files,
+    "breadcrumbs": breadcrumbs,
+}
+```
+
+ - `context`
+   - É um dicionário com os dados que serão enviados para o template renderizar dinamicamente.
+   - Esses dados serão usados para mostrar:
+     - A pasta atual (ou None se estiver na raiz);
+     - As subpastas e arquivos;
+     - O caminho de navegação (breadcrumbs).
 
 
 
@@ -4771,9 +4914,9 @@ Nós tinhamos uma referência das views /home e /workspace_home, vamos ter que l
 
 <div id="main-area-home-workspace"></div>
 
-## `Criando a área principal dos templates /home.html e /workspace_home`
+## `Criando a "Área Principal" dos templates /home.html e /workspace_home`
 
-Agora nós vamos atualizar os templates `/home.html` e `/workspace_home.html` para ficar mais próximo do visual que nós queremos, com:
+Agora nós vamos atualizar os templates [/home.html](../users/templates/pages/home.html) e [/workspace_home.html](../workspace/templates/pages/workspace_home.html) para ficar mais próximo do visual que nós queremos, com:
 
  - "Bem-vindo, {{ request.user.username }}!";
  - Uma futura área que vai ser o chat (home.html);
@@ -4860,57 +5003,76 @@ Agora nós vamos atualizar os templates `/home.html` e `/workspace_home.html` pa
                 </h1>
             </header>
 
-            <!-- 📁 Listagem mista de pastas e arquivos -->
-            <section>
-                {% if folders or files %}
-                    <ul class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <!-- 🧭 Breadcrumbs -->
+            <nav class="text-sm text-gray-600 my-4 flex items-center space-x-2">
 
-                        <!-- Pastas -->
-                        {% for folder in folders %}
-                            <li class="bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer">
-                                <a href="?folder={{ folder.id }}" class="block">
-                                    <span class="text-gray-800 font-semibold flex items-center space-x-2">
-                                        <span>📁</span>
-                                        <span>{{ folder.name }}</span>
-                                    </span>
-                                    <p class="text-xs text-gray-500">
-                                        Criado em {{ folder.created_at|date:"d/m/Y H:i" }}
-                                    </p>
-                                </a>
-                            </li>
-                        {% endfor %}
+                {% if current_folder %}
+                    <!-- Seta de voltar -->
+                    {% if breadcrumbs|length > 1 %}
+                        {% with prev_folder=breadcrumbs|slice:"-2:-1"|first %}
+                            <a href="?folder={{ prev_folder.id }}" class="text-blue-600 hover:underline">← Voltar</a>
+                        {% endwith %}
+                    {% else %}
+                        <a href="{% url 'workspace_home' %}" class="text-blue-600 hover:underline">← Voltar à raiz</a>
+                    {% endif %}
 
-                        <!-- Arquivos -->
-                        {% for file in files %}
-                            <li class="bg-white border rounded-lg p-4 hover:shadow-md transition">
-                                <a href="{{ file.file.url }}" target="_blank" class="block">
-                                    <span class="text-gray-800 font-semibold flex items-center space-x-2">
-                                        <span>📄</span>
-                                        <span>{{ file.name }}</span>
-                                    </span>
-                                    <p class="text-xs text-gray-500">
-                                        Enviado em {{ file.uploaded_at|date:"d/m/Y H:i" }}
-                                    </p>
-                                </a>
-                            </li>
-                        {% endfor %}
-                    </ul>
+                    <!-- Caminho de pastas -->
+                    <span>/</span>
+                    {% for folder in breadcrumbs %}
+                        {% if not forloop.last %}
+                            <a href="?folder={{ folder.id }}" class="hover:underline">{{ folder.name }}</a>
+                            <span>/</span>
+                        {% else %}
+                            <span class="font-semibold">{{ folder.name }}</span>
+                        {% endif %}
+                    {% endfor %}
                 {% else %}
-                    <p class="pt-4 text-gray-500 italic">Nenhum item encontrado neste diretório.</p>
+                    <span class="text-gray-400 italic">📁 Raiz</span>
                 {% endif %}
-            </section>
+            </nav>
+
+            <!-- 📁 Listagem mista de pastas e arquivos -->
+            {% if folders or files %}
+                <ul class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+
+                    <!-- Pastas -->
+                    {% for folder in folders %}
+                        <li class="bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer">
+                            <a href="?folder={{ folder.id }}" class="block">
+                                <span class="text-gray-800 font-semibold flex items-center space-x-2">
+                                    <span>📁</span>
+                                    <span>{{ folder.name }}</span>
+                                </span>
+                            </a>
+                        </li>
+                    {% endfor %}
+
+                    <!-- Arquivos -->
+                    {% for file in files %}
+                        <li class="bg-white border rounded-lg p-4 hover:shadow-md transition">
+                            <a href="{{ file.file.url }}" target="_blank" class="block">
+                                <span class="text-gray-800 font-semibold flex items-center space-x-2">
+                                    <span>📄</span>
+                                    <span>{{ file.name }}</span>
+                                </span>
+                                <p class="text-xs text-gray-500">
+                                    Enviado em {{ file.uploaded_at|date:"d/m/Y H:i" }}
+                                </p>
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="pt-4 text-gray-500 italic">Nenhum item encontrado neste diretório.</p>
+            {% endif %}
+
         </main>
 
     </div>
 {% endblock %}
 ```
 
-
-
-
-
-
-
+![img](images/aapeapa-01.png)  
 
 
 
