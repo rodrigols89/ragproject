@@ -25,6 +25,8 @@
  - [`Customizando os formulários FolderForm e FileForm`](#workspace-forms)
  - [`Atualizando a view (ação) para exibir as pastas e arquivos`](#update-view-to-list-folders-and-files)
  - [`Criando a "Área Principal" dos templates /home.html e /workspace_home`](#main-area-home-workspace)
+ - [`Adicionando novas pastas (folders) com a view create_folder()`](#adding-new-folders)
+ - [`path(route, view, name)`](#path)
  - [`.github/workflows`](#github-workflows)
  - [`Variáveis de Ambiente`](#env-vars)
  - [`Comandos Taskipy`](#taskipy-commands)
@@ -5118,16 +5120,332 @@ Agora nós vamos atualizar os templates [/home.html](../users/templates/pages/ho
 
 
 
+---
+
+<div id="adding-new-folders"></div>
+
+## `Adicionando novas pastas (folders) com a view create_folder()`
+
+> Aqui nós vamos implementar alguns mecanismos para adicionar pastas (folders) novas ao nosso Workspace.
+
+De início vamos criar a parte visual `➕ Nova Pasta` no nosso `Workspace`:
+
+[workspace_home.html](../workspace/templates/pages/workspace_home.html)
+```html
+{% extends "base.html" %}
+{% block title %}Workspace{% endblock %}
+
+{% block content %}
+    <div class="flex h-screen bg-gray-100">
+
+        <!-- 🧱 Sidebar -->
+        <aside class="w-64 bg-gray-900 text-white flex flex-col justify-between">
+
+            <!-- Botão de voltar para Home -->
+            <div class="p-4 border-b border-gray-700">
+                <a href="{% url 'home' %}"
+                   class="block bg-gray-800 hover:bg-gray-700 text-center py-2 rounded">
+                    ← Voltar à Home
+                </a>
+            </div>
+
+            <!-- Logout -->
+            <div class="p-4 border-t border-gray-700">
+                <a href="{% url 'logout' %}"
+                   class="block text-center text-red-400 hover:text-red-300">
+                   Sair
+                </a>
+            </div>
+
+        </aside>
+
+        <!-- 💼 Área principal do Workspace -->
+        <main class="flex-1 p-8 overflow-y-auto">
+
+            <!-- Header -->
+            <header class="bg-white shadow px-6 py-4">
+                <h1 class="text-2xl font-semibold text-gray-800">
+                    Bem-vindo, {{ request.user.username }}!
+                </h1>
+            </header>
+
+            <!-- 🧭 Breadcrumbs -->
+            <nav class="text-sm text-gray-600 my-4 flex items-center space-x-2">
+
+                {% if current_folder %}
+                    <!-- Seta de voltar -->
+                    {% if breadcrumbs|length > 1 %}
+                        {% with prev_folder=breadcrumbs|slice:"-2:-1"|first %}
+                            <a href="?folder={{ prev_folder.id }}" class="text-blue-600 hover:underline">← Voltar</a>
+                        {% endwith %}
+                    {% else %}
+                        <a href="{% url 'workspace_home' %}" class="text-blue-600 hover:underline">← Voltar à raiz</a>
+                    {% endif %}
+
+                    <!-- Caminho de pastas -->
+                    <span>/</span>
+                    {% for folder in breadcrumbs %}
+                        {% if not forloop.last %}
+                            <a href="?folder={{ folder.id }}" class="hover:underline">{{ folder.name }}</a>
+                            <span>/</span>
+                        {% else %}
+                            <span class="font-semibold">{{ folder.name }}</span>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <span class="text-gray-400 italic">📁 Raiz</span>
+                {% endif %}
+            </nav>
+
+            <!-- 📌 Botão de criar pastas -->
+            <div class="mb-6">
+                <button command="show-modal" commandfor="create_folder_modal"
+                        class="inline-block bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+                    ➕ Nova Pasta
+                </button>
+            </div>
+
+            <el-dialog>
+                <dialog id="create_folder_modal" aria-labelledby="modal-title"
+                        class="fixed inset-0 size-auto max-h-none max-w-none overflow-y-auto bg-transparent backdrop:bg-transparent">
+                    <el-dialog-backdrop class="fixed inset-0 bg-gray-900/50 transition-opacity"></el-dialog-backdrop>
+
+                    <div tabindex="0" class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                        <el-dialog-panel class="relative transform rounded-lg bg-white shadow-xl transition-all sm:w-full sm:max-w-md p-6">
+                            <form method="post" action="{% url 'create_folder' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <input type="hidden" name="parent" value="{{ current_folder.id|default_if_none:'' }}">
+
+                                <h3 id="modal-title" class="text-lg font-semibold text-gray-900 mb-4">
+                                    Criar nova pasta
+                                </h3>
+
+                                <div>
+                                    <label for="nome_pasta" class="block text-sm font-medium text-gray-700">
+                                        Nome da pasta
+                                    </label>
+                                    <input type="text" name="name" id="nome_pasta" required
+                                        class="mt-1 block w-full px-4 py-2 border rounded-lg"
+                                        autocomplete="off"
+                                        value="{{ form.name.value|default:'' }}">
+                                    <p id="error-message" class="text-sm text-red-500 mt-1 hidden"></p>
+                                    {% if form.name.errors %}
+                                        <p id="server-error" class="text-sm text-red-500 mt-1">{{ form.name.errors.0 }}</p>
+                                    {% else %}
+                                        <p id="server-error" class="text-sm text-red-500 mt-1 hidden"></p>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mt-6 flex justify-end space-x-2">
+
+                                    <button type="submit" id="create_folder_btn"
+                                            class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded">
+                                        Criar
+                                    </button>
+
+                                    <button type="button" command="close" commandfor="create_folder_modal"
+                                            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        </el-dialog-panel>
+                    </div>
+                </dialog>
+                {% if show_modal %}
+                    <script>
+                        document.addEventListener("DOMContentLoaded", function () {
+                            document.querySelector("#create_folder_modal").showModal();
+                        });
+                    </script>
+                {% endif %}
+            </el-dialog>
+
+            <!-- 📁 Listagem mista de pastas e arquivos -->
+            {% if folders or files %}
+                <ul class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+
+                    <!-- Pastas -->
+                    {% for folder in folders %}
+                        <li class="bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer">
+                            <a href="?folder={{ folder.id }}" class="block">
+                                <span class="text-gray-800 font-semibold flex items-center space-x-2">
+                                    <span>📁</span>
+                                    <span>{{ folder.name }}</span>
+                                </span>
+                            </a>
+                        </li>
+                    {% endfor %}
+
+                    <!-- Arquivos -->
+                    {% for file in files %}
+                        <li class="bg-white border rounded-lg p-4 hover:shadow-md transition">
+                            <a href="{{ file.file.url }}" target="_blank" class="block">
+                                <span class="text-gray-800 font-semibold flex items-center space-x-2">
+                                    <span>📄</span>
+                                    <span>{{ file.name }}</span>
+                                </span>
+                                <p class="text-xs text-gray-500">
+                                    Enviado em {{ file.uploaded_at|date:"d/m/Y H:i" }}
+                                </p>
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="pt-4 text-gray-500 italic">Nenhum item encontrado neste diretório.</p>
+            {% endif %}
+
+        </main>
+
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // elementos
+            const openModalButton = document.querySelector("button[command='show-modal']");
+            const modal = document.querySelector("#create_folder_modal");
+            const input = modal ? modal.querySelector("#nome_pasta") : null;
+            const clientError = modal ? modal.querySelector("#error-message") : null;
+            const serverError = document.getElementById("server-error");
+            const cancelButtons = modal ? modal.querySelectorAll("button[command='close']") : [];
+
+            // função utilitária para limpar erros e input
+            function clearModalFields() {
+                if (input) input.value = "";
+                if (clientError) {
+                    clientError.textContent = "";
+                    clientError.classList.add("hidden");
+                }
+                if (serverError) {
+                    serverError.textContent = "";
+                    serverError.classList.add("hidden");
+                }
+                // habilita botão de criar caso tenha sido desabilitado pelo JS de validação
+                const submitBtn = modal ? modal.querySelector("button[type='submit'], button#create_folder_btn, button#criar_pasta_btn") : null;
+                if (submitBtn) submitBtn.disabled = false;
+            }
+
+            // abrir modal: limpa estado antes de abrir
+            if (openModalButton && modal) {
+                openModalButton.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    clearModalFields();
+                    // abrir dialog HTML5
+                    if (typeof modal.showModal === "function") {
+                        modal.showModal();
+                    } else {
+                        modal.setAttribute("open", "");
+                    }
+                    // opcional: focar input
+                    if (input) input.focus();
+                });
+            }
+
+            // cancelar(s): limpar + fechar
+            cancelButtons.forEach(function (btn) {
+                btn.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    clearModalFields();
+                    // fechar dialog HTML5
+                    if (modal) {
+                        if (typeof modal.close === "function") {
+                            modal.close();
+                        } else {
+                            modal.removeAttribute("open");
+                        }
+                    }
+                });
+            });
+
+            // também limpa se o usuário fechar clicando no backdrop (opcional)
+            if (modal) {
+                modal.addEventListener("cancel", function (e) {
+                    // 'cancel' é disparado quando o usuário pressiona ESC ou invoca close diretamente
+                    clearModalFields();
+                });
+            }
+
+            // Se o modal for reaberto programaticamente após erro do servidor,
+            // o backend renderiza o serverError; se o usuário clicar Cancel, já limpa.
+        });
+    </script>
+{% endblock scripts %}
+```
+
+> **NOTE:**  
+> Comentários sobre a implementação do código em breve.
+
+Agora nós vamos implementar a view (ação) para criar uma nova pasta:
+
+[views.py](../workspace/views.py)
+```python
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import redirect, render, get_object_or_404
+from django.contrib import messages
 
+from .models import Folder
+from .forms import FolderForm
 
 
+@login_required(login_url="/")
+def create_folder(request):
+    if request.method == "POST":
+        form = FolderForm(request.POST)
 
+        # Obter a pasta pai (se aplicável)
+        parent_id = request.POST.get("parent")
+        parent_folder = None
+        if parent_id:
+            parent_folder = get_object_or_404(
+                Folder, id=parent_id, owner=request.user
+            )
 
+        if form.is_valid():
+            name = form.cleaned_data["name"]
 
+            # Verificar duplicação (ignorando caixa alta/baixa)
+            if Folder.objects.filter(
+                owner=request.user, name__iexact=name, parent=parent_folder
+            ).exists():
+                form.add_error(
+                    "name",
+                    "Já existe uma pasta com esse nome nesse diretório.",
+                )
+            else:
+                # Criar nova pasta
+                new_folder = form.save(commit=False)
+                new_folder.owner = request.user
+                new_folder.parent = parent_folder
+                new_folder.save()
 
+                messages.success(
+                    request, f"Pasta '{name}' criada com sucesso!"
+                )
+                return redirect(request.POST.get("next", "workspace"))
 
+        # Se houver erro, renderizar novamente o template para exibir mensagens
+        context = {
+            "form": form,
+            "current_folder": parent_folder,
+            "folders": Folder.objects.filter(
+                parent=parent_folder, owner=request.user
+            ),
+            "files": [],  # se tiver Files também adicione
+            "breadcrumbs": [],  # se quiser breadcrumbs no erro
+            "show_modal": True,  # reabrir modal com erro
+        }
+        return render(request, "pages/workspace_home.html", context)
 
+    # Se método não for POST, redireciona para a home
+    return redirect("workspace")
+```
 
+> **NOTE:**  
+> Comentários sobre a implementação do código em breve.
 
 
 
@@ -5227,6 +5545,310 @@ Agora nós vamos atualizar os templates [/home.html](../users/templates/pages/ho
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="path"></div>
+
+## `path(route, view, name)`
+
+No Django a função `path()` recebe três argumentos:
+
+```python
+path(route, view, name)
+```
+
+ - `route`
+   - É a rota que o usuário vai digitar no navegador.
+   - Por exemplo: `path(route="/workspace/")`
+     - `https://seusite.com/workspace/`
+ - `view`
+   - Uma view (ação) é uma função (ou classe) chamada ao acessar a rota.
+   - É o nome da função em Python que processa a requisição.
+   - Por exemplo: `def workspace_home(request):`
+ - `name`
+   - Apelido interno da URL.
+   - Serve para referenciar a URL dentro do código ou templates, ao invés de usar o caminho literal (que pode mudar).
+   - É especialmente útil com `{% url 'nome_da_url' %}` no template, ou com *reverse()* no código Python.
+   - Por exemplo: `<a href="{% url 'workspace' %}">Ir para o Workspace</a>`
+
+#### Resumo
+
+| Parâmetro          | É...                     | Usado para...                                   |
+| ------------------ | ------------------------ | ----------------------------------------------- |
+| `"workspace/"`     | **Rota** (URL pública)   | Acessado pelo navegador                         |
+| `workspace_home`   | **View** (função Python) | Código que processa a requisição                |
+| `name="workspace"` | **Nome da URL** (alias)  | Referência interna no Django (templates, links) |
 
 
 

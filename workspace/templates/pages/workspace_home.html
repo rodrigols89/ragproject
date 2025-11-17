@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-
 {% block title %}Workspace{% endblock %}
 
 {% block content %}
@@ -64,6 +63,71 @@
                 {% endif %}
             </nav>
 
+            <!-- 📌 Botão de criar pastas -->
+            <div class="mb-6">
+                <button command="show-modal" commandfor="create_folder_modal"
+                        class="inline-block bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+                    ➕ Nova Pasta
+                </button>
+            </div>
+
+            <el-dialog>
+                <dialog id="create_folder_modal" aria-labelledby="modal-title"
+                        class="fixed inset-0 size-auto max-h-none max-w-none overflow-y-auto bg-transparent backdrop:bg-transparent">
+                    <el-dialog-backdrop class="fixed inset-0 bg-gray-900/50 transition-opacity"></el-dialog-backdrop>
+
+                    <div tabindex="0" class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                        <el-dialog-panel class="relative transform rounded-lg bg-white shadow-xl transition-all sm:w-full sm:max-w-md p-6">
+                            <form method="post" action="{% url 'create_folder' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <input type="hidden" name="parent" value="{{ current_folder.id|default_if_none:'' }}">
+
+                                <h3 id="modal-title" class="text-lg font-semibold text-gray-900 mb-4">
+                                    Criar nova pasta
+                                </h3>
+
+                                <div>
+                                    <label for="nome_pasta" class="block text-sm font-medium text-gray-700">
+                                        Nome da pasta
+                                    </label>
+                                    <input type="text" name="name" id="nome_pasta" required
+                                        class="mt-1 block w-full px-4 py-2 border rounded-lg"
+                                        autocomplete="off"
+                                        value="{{ form.name.value|default:'' }}">
+                                    <p id="error-message" class="text-sm text-red-500 mt-1 hidden"></p>
+                                    {% if form.name.errors %}
+                                        <p id="server-error" class="text-sm text-red-500 mt-1">{{ form.name.errors.0 }}</p>
+                                    {% else %}
+                                        <p id="server-error" class="text-sm text-red-500 mt-1 hidden"></p>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mt-6 flex justify-end space-x-2">
+
+                                    <button type="submit" id="create_folder_btn"
+                                            class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded">
+                                        Criar
+                                    </button>
+
+                                    <button type="button" command="close" commandfor="create_folder_modal"
+                                            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        </el-dialog-panel>
+                    </div>
+                </dialog>
+                {% if show_modal %}
+                    <script>
+                        document.addEventListener("DOMContentLoaded", function () {
+                            document.querySelector("#create_folder_modal").showModal();
+                        });
+                    </script>
+                {% endif %}
+            </el-dialog>
+
             <!-- 📁 Listagem mista de pastas e arquivos -->
             {% if folders or files %}
                 <ul class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -103,3 +167,76 @@
 
     </div>
 {% endblock %}
+
+{% block scripts %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // elementos
+            const openModalButton = document.querySelector("button[command='show-modal']");
+            const modal = document.querySelector("#create_folder_modal");
+            const input = modal ? modal.querySelector("#nome_pasta") : null;
+            const clientError = modal ? modal.querySelector("#error-message") : null;
+            const serverError = document.getElementById("server-error");
+            const cancelButtons = modal ? modal.querySelectorAll("button[command='close']") : [];
+
+            // função utilitária para limpar erros e input
+            function clearModalFields() {
+                if (input) input.value = "";
+                if (clientError) {
+                    clientError.textContent = "";
+                    clientError.classList.add("hidden");
+                }
+                if (serverError) {
+                    serverError.textContent = "";
+                    serverError.classList.add("hidden");
+                }
+                // habilita botão de criar caso tenha sido desabilitado pelo JS de validação
+                const submitBtn = modal ? modal.querySelector("button[type='submit'], button#create_folder_btn, button#criar_pasta_btn") : null;
+                if (submitBtn) submitBtn.disabled = false;
+            }
+
+            // abrir modal: limpa estado antes de abrir
+            if (openModalButton && modal) {
+                openModalButton.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    clearModalFields();
+                    // abrir dialog HTML5
+                    if (typeof modal.showModal === "function") {
+                        modal.showModal();
+                    } else {
+                        modal.setAttribute("open", "");
+                    }
+                    // opcional: focar input
+                    if (input) input.focus();
+                });
+            }
+
+            // cancelar(s): limpar + fechar
+            cancelButtons.forEach(function (btn) {
+                btn.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    clearModalFields();
+                    // fechar dialog HTML5
+                    if (modal) {
+                        if (typeof modal.close === "function") {
+                            modal.close();
+                        } else {
+                            modal.removeAttribute("open");
+                        }
+                    }
+                });
+            });
+
+            // também limpa se o usuário fechar clicando no backdrop (opcional)
+            if (modal) {
+                modal.addEventListener("cancel", function (e) {
+                    // 'cancel' é disparado quando o usuário pressiona ESC ou invoca close diretamente
+                    clearModalFields();
+                });
+            }
+
+            // Se o modal for reaberto programaticamente após erro do servidor,
+            // o backend renderiza o serverError; se o usuário clicar Cancel, já limpa.
+        });
+    </script>
+{% endblock scripts %}
