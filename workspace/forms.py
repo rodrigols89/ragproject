@@ -63,3 +63,9 @@ class FileForm(forms.ModelForm):
             # preenche com o filename (sem path)
             return uploaded.name
         return name
+
+
+class FileUploadForm(forms.ModelForm):
+    class Meta:
+        model = File
+        fields = ["file"]

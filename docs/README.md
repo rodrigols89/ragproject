@@ -26,6 +26,7 @@
  - [`Atualizando a view (ação) para exibir as pastas e arquivos`](#update-view-to-list-folders-and-files)
  - [`Criando a "Área Principal" dos templates /home.html e /workspace_home`](#main-area-home-workspace)
  - [`Adicionando novas pastas (folders) com a view create_folder()`](#adding-new-folders)
+ - [`Implementando a inserção de arquivos`](#implement-insert-files)
  - [`path(route, view, name)`](#path)
  - [`.github/workflows`](#github-workflows)
  - [`Variáveis de Ambiente`](#env-vars)
@@ -5458,6 +5459,833 @@ def create_folder(request):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="implement-insert-files"></div>
+
+## `Implementando a inserção de arquivos`
+
+> Aqui nós vamos implementar toda a lógica de inserção de arquivos.
+
+[nginx.conf](../nginx/nginx.conf)
+```conf
+server {
+    listen 80;
+    server_name _;
+
+    # 🔓 Permitir uploads (dados enviados pelo usuário) de qualquer tamanho.
+    # > O Django quem vai validar isso.
+    client_max_body_size 0;
+
+    # Servir arquivos estáticos diretamente
+    location /static/ {
+        alias /code/staticfiles/;
+        expires 30d;
+        access_log off;
+        autoindex on;
+    }
+
+    # Servir arquivos de mídia
+    location /media/ {
+        alias /code/media/;
+        expires 30d;
+        access_log off;
+        autoindex on;
+    }
+
+    # Repassar o resto das requisições para o Django (Uvicorn)
+    location / {
+        proxy_pass http://web:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+> **NOTE:**  
+> Comentários sobre a implementação do código em breve.
+
+[workspace/urls.py](../workspace/urls.py)
+```python
+from django.urls import path
+
+from .views import create_folder, upload_file, workspace_home
+
+urlpatterns = [
+    path(route="workspace", view=workspace_home, name="workspace_home"),
+    path(route="create-folder/", view=create_folder, name="create_folder"),
+    path(route="upload-file/", view=upload_file, name="upload_file"),
+]
+```
+
+[workspace/models.py](../workspace/models.py)
+```python
+import os
+
+from django.conf import settings
+from django.db import models
+from django.utils.translation import gettext_lazy as _
+
+
+def workspace_upload_to(instance, filename):
+    """
+    Constrói o path onde o arquivo será salvo dentro de MEDIA_ROOT:
+    workspace/<user_id>/<folder_id_or_root>/<filename>
+    """
+    user_part = (
+        f"user_{instance.folder.owner.id}"
+        if instance.folder and instance.folder.owner
+        else f"user_{instance.uploader.id}"
+    )
+
+    folder_part = f"folder_{instance.folder.id}" if instance.folder else "root"
+
+    # Limpa o nome do arquivo por segurança básica
+    safe_name = os.path.basename(filename)
+
+    return os.path.join("workspace", user_part, folder_part, safe_name)
+
+
+class Folder(models.Model):
+    """
+    Representa uma pasta do usuário. Suporta hierarquia via parent (self-FK).
+    """
+
+    name = models.CharField(_("name"), max_length=255)
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="folders",
+    )
+
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="children",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = _("Folder")
+        verbose_name_plural = _("Folders")
+
+    def __str__(self):
+        return self.name
+
+
+class File(models.Model):
+    """
+    Representa um arquivo armazenado em uma pasta (Folder) ou na raiz.
+    """
+
+    name = models.CharField(_("name"), max_length=255)
+
+    file = models.FileField(_("file"), upload_to=workspace_upload_to)
+
+    folder = models.ForeignKey(
+        Folder,
+        on_delete=models.CASCADE,
+        related_name="files",
+        null=True,  # Agora aceita arquivos sem pasta
+        blank=True,  # Também permite que o formulário aceite sem pasta
+    )
+
+    uploader = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="uploaded_files",
+    )
+
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+        verbose_name = _("File")
+        verbose_name_plural = _("Files")
+
+    def __str__(self):
+        return self.name
+```
+
+[workspace/forms.py](../workspace/forms.py)
+```python
+from django import forms
+from django.core.exceptions import ValidationError
+
+from .models import File, Folder
+
+
+# Exemplo simples de validador de tamanho (50 MB)
+def validate_file_size(value):
+    max_mb = 50
+    if value.size > max_mb * 1024 * 1024:
+        raise ValidationError(f"O arquivo não pode ser maior que {max_mb} MB.")
+
+
+class FolderForm(forms.ModelForm):
+    class Meta:
+        model = Folder
+        fields = ["name"]
+        widgets = {
+            "name": forms.TextInput(
+                attrs={
+                    "class": "block w-full px-3 py-2 border rounded",
+                    "placeholder": "Nome da pasta",
+                }
+            ),
+        }
+        error_messages = {
+            "name": {"required": "O nome da pasta é obrigatório."},
+        }
+
+    def clean_name(self):
+        name = self.cleaned_data.get("name", "").strip()
+        # opcional: garantir unicidade no mesmo parent/owner
+        if not name:
+            raise ValidationError("Nome inválido.")
+        return name
+
+
+class FileForm(forms.ModelForm):
+    class Meta:
+        model = File
+        fields = ["name", "file"]
+        widgets = {
+            "name": forms.TextInput(
+                attrs={
+                    "class": "block w-full px-3 py-2 border rounded",
+                    "placeholder": "Nome do arquivo (opcional)",
+                }
+            ),
+            "file": forms.ClearableFileInput(attrs={"class": "block w-full"}),
+        }
+        error_messages = {
+            "file": {"required": "Selecione um arquivo para enviar."},
+        }
+
+    # adiciona validação de tamanho
+    file = forms.FileField(validators=[validate_file_size])
+
+    def clean_name(self):
+        name = self.cleaned_data.get("name")
+        uploaded = self.cleaned_data.get("file")
+        if not name and uploaded:
+            # se o usuário não informou o name,
+            # preenche com o filename (sem path)
+            return uploaded.name
+        return name
+
+
+class FileUploadForm(forms.ModelForm):
+    class Meta:
+        model = File
+        fields = ["file"]
+```
+
+[workspace/validators.py](../workspace/validators.py)
+```python
+import os
+
+from django.core.exceptions import ValidationError
+
+MAX_FILE_MB = 100
+MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024
+
+ALLOWED_EXTENSIONS = {".pdf", ".txt", ".doc", ".docx"}
+ALLOWED_FORMATTED = ", ".join(ext.upper() for ext in ALLOWED_EXTENSIONS)
+
+
+def validate_file_type(uploaded_file):
+    """Valida o tipo de arquivo pela extensão."""
+    ext = os.path.splitext(uploaded_file.name)[1].lower()
+
+    if ext not in ALLOWED_EXTENSIONS:
+        # Quebra de linha para evitar E501
+        msg = (
+            f"Arquivo inválido: '{uploaded_file.name}'. "
+            f"O formato '{ext}' não é permitido. "
+            f"Apenas {ALLOWED_FORMATTED} são aceitos."
+        )
+        raise ValidationError(msg)
+
+
+def validate_file_size(uploaded_file):
+    """Valida o tamanho do arquivo."""
+    if uploaded_file.size > MAX_FILE_BYTES:
+        # Outra quebra de linha para evitar E501
+        msg = (
+            f"O arquivo '{uploaded_file.name}' excede o limite "
+            f"de {MAX_FILE_MB}MB."
+        )
+        raise ValidationError(msg)
+
+
+def validate_file(uploaded_file):
+    """
+    Validação completa: tipo + tamanho.
+    """
+    validate_file_type(uploaded_file)
+    validate_file_size(uploaded_file)
+```
+
+[workspace/views.py](../workspace/views.py)
+```python
+import os
+
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect, render
+
+from .forms import FolderForm
+from .models import File, Folder
+from .validators import validate_file
+
+
+@login_required(login_url="/")
+def workspace_home(request):
+    folder_id = request.GET.get("folder")
+
+    # 📁 1. Se o usuário clicou em alguma pasta
+    if folder_id:
+        current_folder = get_object_or_404(
+            Folder, id=folder_id, owner=request.user
+        )
+
+        # Subpastas da pasta atual
+        folders = Folder.objects.filter(parent=current_folder)
+
+        # Arquivos da pasta atual
+        files = File.objects.filter(folder=current_folder)
+
+        # Breadcrumbs (caminho completo)
+        breadcrumbs = []
+        temp = current_folder
+        while temp:
+            breadcrumbs.append(temp)
+            temp = temp.parent
+        breadcrumbs.reverse()
+
+    else:
+        # 📁 2. Estamos no nível raiz
+        current_folder = None
+
+        folders = Folder.objects.filter(
+            owner=request.user, parent__isnull=True
+        )
+
+        files = File.objects.filter(uploader=request.user, folder__isnull=True)
+
+        breadcrumbs = []  # Raiz não tem caminho
+
+    context = {
+        "current_folder": current_folder,
+        "folders": folders,
+        "files": files,
+        "breadcrumbs": breadcrumbs,
+    }
+
+    return render(request, "pages/workspace_home.html", context)
+
+
+
+@login_required(login_url="/")
+def create_folder(request):
+    if request.method == "POST":
+        form = FolderForm(request.POST)
+
+        # Obter a pasta pai (se aplicável)
+        parent_id = request.POST.get("parent")
+        parent_folder = None
+        if parent_id:
+            parent_folder = get_object_or_404(
+                Folder, id=parent_id, owner=request.user
+            )
+
+        if form.is_valid():
+            name = form.cleaned_data["name"]
+
+            # Verificar duplicação (ignorando caixa alta/baixa)
+            if Folder.objects.filter(
+                owner=request.user, name__iexact=name, parent=parent_folder
+            ).exists():
+                form.add_error(
+                    "name",
+                    "Já existe uma pasta com esse nome nesse diretório.",
+                )
+            else:
+                # Criar nova pasta
+                new_folder = form.save(commit=False)
+                new_folder.owner = request.user
+                new_folder.parent = parent_folder
+                new_folder.save()
+
+                messages.success(
+                    request, f"Pasta '{name}' criada com sucesso!"
+                )
+                return redirect(request.POST.get("next", "workspace"))
+
+        # ---------------------------------------------------------------
+        # ❗ Se houver erro, renderizar novamente a página CORRETAMENTE
+        # mantendo arquivos e pastas da pasta atual (ou raiz)
+        # ---------------------------------------------------------------
+
+        # Pastas da pasta atual (ou raiz)
+        folders = Folder.objects.filter(
+            parent=parent_folder, owner=request.user
+        )
+
+        # Arquivos da pasta atual (ou raiz)
+        files = File.objects.filter(
+            folder=parent_folder, uploader=request.user
+        )
+
+        # Breadcrumbs corretos
+        breadcrumbs = build_breadcrumbs(parent_folder)
+
+        context = {
+            "form": form,
+            "current_folder": parent_folder,
+            "folders": folders,
+            "files": files,
+            "breadcrumbs": breadcrumbs,
+            "show_modal": True,  # reabrir modal com erro
+        }
+        return render(request, "pages/workspace_home.html", context)
+
+    # Se método não for POST, redireciona para a home
+    return redirect("workspace")
+
+@login_required(login_url="/")
+def upload_file(request):
+    """
+    View que faz upload de arquivos com:
+    - validação de extensão
+    - validação de tamanho
+    - renome automático em caso de duplicação
+    """
+    if request.method == "POST":
+        uploaded_file = request.FILES.get("file")
+        next_url = request.POST.get("next", "workspace_home")
+        folder_id = request.POST.get("folder")
+        folder = None
+
+        # pegar pasta atual se existir
+        if folder_id:
+            folder = get_object_or_404(
+                Folder, id=folder_id, owner=request.user
+            )
+
+        # nenhum arquivo enviado
+        if not uploaded_file:
+            messages.error(request, "Nenhum arquivo foi enviado.")
+            return redirect(next_url)
+
+        # ------------------------------
+        # 🔍 Validações via validators.py
+        # ------------------------------
+        try:
+            validate_file(uploaded_file)
+        except Exception as e:
+            # pega somente a mensagem, não a lista
+            messages.error(request, e.message)
+            return redirect(next_url)
+
+        # -------------------------------------
+        # 🔄 Renome automático em caso de duplicação
+        # -------------------------------------
+        original_name = uploaded_file.name
+        base, ext = os.path.splitext(original_name)
+        new_name = original_name
+        counter = 1
+
+        while File.objects.filter(
+            uploader=request.user, folder=folder, name__iexact=new_name
+        ).exists():
+            new_name = f"{base} ({counter}){ext}"
+            counter += 1
+
+        # ------------------------------
+        # 💾 Criação do arquivo
+        # ------------------------------
+        File.objects.create(
+            name=new_name,
+            file=uploaded_file,
+            folder=folder,
+            uploader=request.user,
+        )
+
+        messages.success(request, f"Arquivo '{new_name}' enviado com sucesso!")
+        return redirect(next_url)
+
+    return redirect("workspace_home")
+
+
+def build_breadcrumbs(folder):
+    """
+    Constrói a lista de breadcrumbs (caminho completo)
+    desde a raiz até a pasta atual.
+    """
+    breadcrumbs = []
+    while folder:
+        breadcrumbs.insert(0, folder)
+        folder = folder.parent
+    return breadcrumbs
+```
+
+[workspace/templates/pages/workspace_home.html](../workspace/templates/pages/workspace_home.html)
+```html
+{% extends "base.html" %}
+{% block title %}Workspace{% endblock %}
+
+{% block content %}
+    <div class="flex h-screen bg-gray-100">
+
+        <!-- 🧱 Sidebar -->
+        <aside class="w-64 bg-gray-900 text-white flex flex-col justify-between">
+
+            <!-- Botão de voltar para Home -->
+            <div class="p-4 border-b border-gray-700">
+                <a href="{% url 'home' %}"
+                   class="block bg-gray-800 hover:bg-gray-700 text-center py-2 rounded">
+                    ← Voltar à Home
+                </a>
+            </div>
+
+            <!-- Logout -->
+            <div class="p-4 border-t border-gray-700">
+                <a href="{% url 'logout' %}"
+                   class="block text-center text-red-400 hover:text-red-300">
+                   Sair
+                </a>
+            </div>
+
+        </aside>
+
+        <!-- 💼 Área principal do Workspace -->
+        <main class="flex-1 p-8 overflow-y-auto">
+
+            <!-- Header -->
+            <header class="bg-white shadow px-6 py-4">
+                <h1 class="text-2xl font-semibold text-gray-800">
+                    Bem-vindo, {{ request.user.username }}!
+                </h1>
+            </header>
+
+            <!-- 🧭 Breadcrumbs -->
+            <nav class="text-sm text-gray-600 my-4 flex items-center space-x-2">
+
+                {% if current_folder %}
+                    <!-- Seta de voltar -->
+                    {% if breadcrumbs|length > 1 %}
+                        {% with prev_folder=breadcrumbs|slice:"-2:-1"|first %}
+                            <a href="?folder={{ prev_folder.id }}" class="text-blue-600 hover:underline">← Voltar</a>
+                        {% endwith %}
+                    {% else %}
+                        <a href="{% url 'workspace_home' %}" class="text-blue-600 hover:underline">← Voltar à raiz</a>
+                    {% endif %}
+
+                    <!-- Caminho de pastas -->
+                    <span>/</span>
+                    {% for folder in breadcrumbs %}
+                        {% if not forloop.last %}
+                            <a href="?folder={{ folder.id }}" class="hover:underline">{{ folder.name }}</a>
+                            <span>/</span>
+                        {% else %}
+                            <span class="font-semibold">{{ folder.name }}</span>
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <span class="text-gray-400 italic">📁 Raiz</span>
+                {% endif %}
+            </nav>
+
+            <!-- Mensagens de feedback do Django -->
+            {% if messages %}
+                <ul class="mb-4">
+                    {% for message in messages %}
+                        <li class="px-4 py-2 rounded 
+                                {% if message.tags == 'success' %}bg-green-100 text-green-700
+                                {% else %}bg-red-100 text-red-700{% endif %}">
+                            {{ message }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
+            <!-- 📌 Botão de criar pastas -->
+            <div class="mb-6">
+                <button command="show-modal" commandfor="create_folder_modal"
+                        class="inline-block bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
+                    ➕ Nova Pasta
+                </button>
+                <form method="post" action="{% url 'upload_file' %}" enctype="multipart/form-data" class="inline-block">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <input type="hidden" name="folder" value="{{ current_folder.id|default_if_none:'' }}">
+
+                    <label class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded cursor-pointer">
+                        📤 Fazer Upload
+                        <input type="file" name="file" multiple class="hidden" onchange="this.form.submit()">
+                    </label>
+                </form>
+            </div>
+
+            <el-dialog>
+                <dialog id="create_folder_modal" aria-labelledby="modal-title"
+                        class="fixed inset-0 size-auto max-h-none max-w-none overflow-y-auto bg-transparent backdrop:bg-transparent">
+                    <el-dialog-backdrop class="fixed inset-0 bg-gray-900/50 transition-opacity"></el-dialog-backdrop>
+
+                    <div tabindex="0" class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                        <el-dialog-panel class="relative transform rounded-lg bg-white shadow-xl transition-all sm:w-full sm:max-w-md p-6">
+                            <form method="post" action="{% url 'create_folder' %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <input type="hidden" name="parent" value="{{ current_folder.id|default_if_none:'' }}">
+
+                                <h3 id="modal-title" class="text-lg font-semibold text-gray-900 mb-4">
+                                    Criar nova pasta
+                                </h3>
+
+                                <div>
+                                    <label for="nome_pasta" class="block text-sm font-medium text-gray-700">
+                                        Nome da pasta
+                                    </label>
+                                    <input type="text" name="name" id="nome_pasta" required
+                                        class="mt-1 block w-full px-4 py-2 border rounded-lg"
+                                        autocomplete="off"
+                                        value="{{ form.name.value|default:'' }}">
+                                    <p id="error-message" class="text-sm text-red-500 mt-1 hidden"></p>
+                                    {% if form.name.errors %}
+                                        <p id="server-error" class="text-sm text-red-500 mt-1">{{ form.name.errors.0 }}</p>
+                                    {% else %}
+                                        <p id="server-error" class="text-sm text-red-500 mt-1 hidden"></p>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mt-6 flex justify-end space-x-2">
+
+                                    <button type="submit" id="create_folder_btn"
+                                            class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded">
+                                        Criar
+                                    </button>
+
+                                    <button type="button" command="close" commandfor="create_folder_modal"
+                                            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        </el-dialog-panel>
+                    </div>
+                </dialog>
+                {% if show_modal %}
+                    <script>
+                        document.addEventListener("DOMContentLoaded", function () {
+                            document.querySelector("#create_folder_modal").showModal();
+                        });
+                    </script>
+                {% endif %}
+            </el-dialog>
+
+            <el-dialog>
+                <dialog id="upload_file_modal" aria-labelledby="modal-title"
+                        class="fixed inset-0 size-auto max-h-none max-w-none overflow-y-auto bg-transparent backdrop:bg-transparent">
+                    <el-dialog-backdrop class="fixed inset-0 bg-gray-900/50 transition-opacity"></el-dialog-backdrop>
+
+                    <div tabindex="0" class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                        <el-dialog-panel class="relative transform rounded-lg bg-white shadow-xl transition-all sm:w-full sm:max-w-md p-6">
+                            
+                            <form method="post" action="" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <input type="hidden" name="folder" value="{{ current_folder.id|default_if_none:'' }}">
+
+                                <h3 id="modal-title" class="text-lg font-semibold text-gray-900 mb-4">
+                                    Upload de Arquivo
+                                </h3>
+
+                                <div>
+                                    <label for="file" class="block text-sm font-medium text-gray-700">
+                                        Escolher arquivo
+                                    </label>
+                                    <input type="file" name="file" id="file" required
+                                        class="mt-1 block w-full px-4 py-2 border rounded-lg">
+                                    {% if upload_error %}
+                                        <p id="server-error" class="text-sm text-red-500 mt-1">{{ upload_error }}</p>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mt-6 flex justify-end space-x-2">
+                                    <button type="submit"
+                                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded">
+                                        Upload
+                                    </button>
+
+                                    <button type="button" command="close" commandfor="upload_file_modal"
+                                            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        </el-dialog-panel>
+                    </div>
+                </dialog>
+            </el-dialog>
+
+            <!-- 📁 Listagem mista de pastas e arquivos -->
+            {% if folders or files %}
+                <ul class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+
+                    <!-- Pastas -->
+                    {% for folder in folders %}
+                        <li class="bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer">
+                            <a href="?folder={{ folder.id }}" class="block">
+                                <span class="text-gray-800 font-semibold flex items-center space-x-2">
+                                    <span>📁</span>
+                                    <span>{{ folder.name }}</span>
+                                </span>
+                            </a>
+                        </li>
+                    {% endfor %}
+
+                    <!-- Arquivos -->
+                    {% for file in files %}
+                        <li class="bg-white border rounded-lg p-4 hover:shadow-md transition">
+                            <a href="{{ file.file.url }}" target="_blank" class="block">
+                                <span class="text-gray-800 font-semibold flex items-center space-x-2">
+                                    <span>📄</span>
+                                    <span>{{ file.name }}</span>
+                                </span>
+                                <p class="text-xs text-gray-500">
+                                    Enviado em {{ file.uploaded_at|date:"d/m/Y H:i" }}
+                                    ({{ file.file.size|filesizeformat }})
+                                </p>
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="pt-4 text-gray-500 italic">Nenhum item encontrado neste diretório.</p>
+            {% endif %}
+
+        </main>
+
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            // elementos
+            const openModalButton = document.querySelector("button[command='show-modal']");
+            const modal = document.querySelector("#create_folder_modal");
+            const input = modal ? modal.querySelector("#nome_pasta") : null;
+            const clientError = modal ? modal.querySelector("#error-message") : null;
+            const serverError = document.getElementById("server-error");
+            const cancelButtons = modal ? modal.querySelectorAll("button[command='close']") : [];
+
+            // função utilitária para limpar erros e input
+            function clearModalFields() {
+                if (input) input.value = "";
+                if (clientError) {
+                    clientError.textContent = "";
+                    clientError.classList.add("hidden");
+                }
+                if (serverError) {
+                    serverError.textContent = "";
+                    serverError.classList.add("hidden");
+                }
+                // habilita botão de criar caso tenha sido desabilitado pelo JS de validação
+                const submitBtn = modal ? modal.querySelector("button[type='submit'], button#create_folder_btn, button#criar_pasta_btn") : null;
+                if (submitBtn) submitBtn.disabled = false;
+            }
+
+            // abrir modal: limpa estado antes de abrir
+            if (openModalButton && modal) {
+                openModalButton.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    clearModalFields();
+                    // abrir dialog HTML5
+                    if (typeof modal.showModal === "function") {
+                        modal.showModal();
+                    } else {
+                        modal.setAttribute("open", "");
+                    }
+                    // opcional: focar input
+                    if (input) input.focus();
+                });
+            }
+
+            // cancelar(s): limpar + fechar
+            cancelButtons.forEach(function (btn) {
+                btn.addEventListener("click", function (e) {
+                    e.preventDefault();
+                    clearModalFields();
+                    // fechar dialog HTML5
+                    if (modal) {
+                        if (typeof modal.close === "function") {
+                            modal.close();
+                        } else {
+                            modal.removeAttribute("open");
+                        }
+                    }
+                });
+            });
+
+            // também limpa se o usuário fechar clicando no backdrop (opcional)
+            if (modal) {
+                modal.addEventListener("cancel", function (e) {
+                    // 'cancel' é disparado quando o usuário pressiona ESC ou invoca close diretamente
+                    clearModalFields();
+                });
+            }
+
+            // Se o modal for reaberto programaticamente após erro do servidor,
+            // o backend renderiza o serverError; se o usuário clicar Cancel, já limpa.
+        });
+    </script>
+{% endblock scripts %}
+```
 
 
 

@@ -63,12 +63,35 @@
                 {% endif %}
             </nav>
 
+            <!-- Mensagens de feedback do Django -->
+            {% if messages %}
+                <ul class="mb-4">
+                    {% for message in messages %}
+                        <li class="px-4 py-2 rounded 
+                                {% if message.tags == 'success' %}bg-green-100 text-green-700
+                                {% else %}bg-red-100 text-red-700{% endif %}">
+                            {{ message }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+
             <!-- 📌 Botão de criar pastas -->
             <div class="mb-6">
                 <button command="show-modal" commandfor="create_folder_modal"
                         class="inline-block bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
                     ➕ Nova Pasta
                 </button>
+                <form method="post" action="{% url 'upload_file' %}" enctype="multipart/form-data" class="inline-block">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <input type="hidden" name="folder" value="{{ current_folder.id|default_if_none:'' }}">
+
+                    <label class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded cursor-pointer">
+                        📤 Fazer Upload
+                        <input type="file" name="file" multiple class="hidden" onchange="this.form.submit()">
+                    </label>
+                </form>
             </div>
 
             <el-dialog>
@@ -128,6 +151,51 @@
                 {% endif %}
             </el-dialog>
 
+            <el-dialog>
+                <dialog id="upload_file_modal" aria-labelledby="modal-title"
+                        class="fixed inset-0 size-auto max-h-none max-w-none overflow-y-auto bg-transparent backdrop:bg-transparent">
+                    <el-dialog-backdrop class="fixed inset-0 bg-gray-900/50 transition-opacity"></el-dialog-backdrop>
+
+                    <div tabindex="0" class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                        <el-dialog-panel class="relative transform rounded-lg bg-white shadow-xl transition-all sm:w-full sm:max-w-md p-6">
+                            
+                            <form method="post" action="" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <input type="hidden" name="folder" value="{{ current_folder.id|default_if_none:'' }}">
+
+                                <h3 id="modal-title" class="text-lg font-semibold text-gray-900 mb-4">
+                                    Upload de Arquivo
+                                </h3>
+
+                                <div>
+                                    <label for="file" class="block text-sm font-medium text-gray-700">
+                                        Escolher arquivo
+                                    </label>
+                                    <input type="file" name="file" id="file" required
+                                        class="mt-1 block w-full px-4 py-2 border rounded-lg">
+                                    {% if upload_error %}
+                                        <p id="server-error" class="text-sm text-red-500 mt-1">{{ upload_error }}</p>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mt-6 flex justify-end space-x-2">
+                                    <button type="submit"
+                                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded">
+                                        Upload
+                                    </button>
+
+                                    <button type="button" command="close" commandfor="upload_file_modal"
+                                            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        </el-dialog-panel>
+                    </div>
+                </dialog>
+            </el-dialog>
+
             <!-- 📁 Listagem mista de pastas e arquivos -->
             {% if folders or files %}
                 <ul class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -154,6 +222,7 @@
                                 </span>
                                 <p class="text-xs text-gray-500">
                                     Enviado em {{ file.uploaded_at|date:"d/m/Y H:i" }}
+                                    ({{ file.file.size|filesizeformat }})
                                 </p>
                             </a>
                         </li>

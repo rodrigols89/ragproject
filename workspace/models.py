@@ -18,7 +18,7 @@ def workspace_upload_to(instance, filename):
 
     folder_part = f"folder_{instance.folder.id}" if instance.folder else "root"
 
-    # limpa nome do arquivo por segurança básica
+    # Limpa o nome do arquivo por segurança básica
     safe_name = os.path.basename(filename)
 
     return os.path.join("workspace", user_part, folder_part, safe_name)
@@ -58,7 +58,7 @@ class Folder(models.Model):
 
 class File(models.Model):
     """
-    Representa um arquivo armazenado em uma pasta (Folder).
+    Representa um arquivo armazenado em uma pasta (Folder) ou na raiz.
     """
 
     name = models.CharField(_("name"), max_length=255)
@@ -66,7 +66,11 @@ class File(models.Model):
     file = models.FileField(_("file"), upload_to=workspace_upload_to)
 
     folder = models.ForeignKey(
-        Folder, on_delete=models.CASCADE, related_name="files"
+        Folder,
+        on_delete=models.CASCADE,
+        related_name="files",
+        null=True,  # Agora aceita arquivos sem pasta
+        blank=True,  # Também permite que o formulário aceite sem pasta
     )
 
     uploader = models.ForeignKey(
