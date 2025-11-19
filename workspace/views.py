@@ -1,3 +1,4 @@
+from datetime import timezone
 import os
 
 from django.contrib import messages
@@ -57,6 +58,7 @@ def workspace_home(request):
 
 
 @login_required(login_url="/")
+@login_required(login_url="/")
 def create_folder(request):
     if request.method == "POST":
         form = FolderForm(request.POST)
@@ -93,22 +95,24 @@ def create_folder(request):
                 return redirect(request.POST.get("next", "workspace"))
 
         # ---------------------------------------------------------------
-        # ❗ Se houver erro, renderizar novamente a página CORRETAMENTE
-        # mantendo arquivos e pastas da pasta atual (ou raiz)
+        # ❗ Se houver erro, reconstruir contexto da pasta correta
         # ---------------------------------------------------------------
 
-        # Pastas da pasta atual (ou raiz)
-        folders = Folder.objects.filter(
-            parent=parent_folder, owner=request.user
-        )
-
-        # Arquivos da pasta atual (ou raiz)
-        files = File.objects.filter(
-            folder=parent_folder, uploader=request.user
-        )
-
-        # Breadcrumbs corretos
-        breadcrumbs = build_breadcrumbs(parent_folder)
+        # Recupere novamente *tudo* como na workspace_home
+        if parent_folder:
+            # Estamos dentro de uma pasta
+            folders = Folder.objects.filter(parent=parent_folder)
+            files = File.objects.filter(folder=parent_folder)
+            breadcrumbs = build_breadcrumbs(parent_folder)
+        else:
+            # Estamos na raiz
+            folders = Folder.objects.filter(
+                owner=request.user, parent__isnull=True
+            )
+            files = File.objects.filter(
+                uploader=request.user, folder__isnull=True
+            )
+            breadcrumbs = []
 
         context = {
             "form": form,
@@ -122,6 +126,7 @@ def create_folder(request):
 
     # Se método não for POST, redireciona para a home
     return redirect("workspace")
+
 
 @login_required(login_url="/")
 def upload_file(request):
@@ -198,3 +203,38 @@ def build_breadcrumbs(folder):
         breadcrumbs.insert(0, folder)
         folder = folder.parent
     return breadcrumbs
+
+@login_required(login_url="/")
+def delete_folder(request, folder_id):
+    folder = get_object_or_404(Folder, id=folder_id, owner=request.user)
+
+    # pasta pai p/ retornar após exclusão
+    parent = folder.parent
+
+    folder.is_deleted = True
+    folder.deleted_at = timezone.now()
+    folder.save()
+
+    messages.success(request, f"Pasta '{folder.name}' movida para a lixeira.")
+
+    if parent:
+        return redirect(f"/workspace?folder={parent.id}")
+
+    return redirect("workspace_home")
+
+@login_required(login_url="/")
+def delete_file(request, file_id):
+    file = get_object_or_404(File, id=file_id, uploader=request.user)
+
+    folder = file.folder
+
+    file.is_deleted = True
+    file.deleted_at = timezone.now()
+    file.save()
+
+    messages.success(request, f"Arquivo '{file.name}' movido para a lixeira.")
+
+    if folder:
+        return redirect(f"/workspace?folder={folder.id}")
+
+    return redirect("workspace_home")

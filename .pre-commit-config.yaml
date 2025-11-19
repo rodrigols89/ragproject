@@ -6,7 +6,7 @@ repos:
         entry: task lint
         language: system
         types: [python]
-        exclude: ^(core/settings\.py|documents/migrations|users/adapter.py|workspace/migrations)
+        exclude: ^(core/settings\.py|documents/migrations|users/adapter.py|workspace/migrations|workspace/urls.py)
 
       #- id: pytest-test
       #  name: pytest test

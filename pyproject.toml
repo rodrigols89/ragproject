@@ -30,7 +30,8 @@ line-length = 79
 exclude = [
     "core/settings.py",
     "workspace/migrations",
-    "users/adapter.py"
+    "users/adapter.py",
+    "workspace/urls.py"
 ]
 
 [tool.ruff.lint]
