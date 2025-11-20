@@ -54,6 +54,8 @@ precommit = 'pre-commit run --all-files'
 pre_test = 'task lint'
 test = 'pytest -s -x --cov=. -vv'
 post_test = 'coverage html'
+exportdev = 'poetry export --without-hashes --with dev --format=requirements.txt --output=requirements-dev.txt'
+exportprod = 'poetry export --without-hashes --format=requirements.txt --output=requirements.txt'
 killserver = 'sudo kill -9 $(sudo lsof -t -i:8000)'  # Kill service/port 8000
 opendb = 'docker exec -it postgresql psql -U easyrag -d easy_rag_db'
 openweb = 'docker exec -it django bash'
