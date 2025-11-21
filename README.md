@@ -1,6 +1,7 @@
 # RAG Project
 
  - **Project Structure:**
+   - [`.github/workflows`](#github-workflows)
    - [`core/`](#core-project)
      - [`__init__.py`](#core-init-py)
      - [`asgi.py`](#core-asgi-py)
@@ -27,6 +28,241 @@
 - Same topic = "10" Whitespace character.
 - Different topic = "50" Whitespace character.
 --->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--- ( .github/workflows ) --->
+
+---
+
+<div id="github-workflows"></div>
+
+## `.github/workflows`
+
+O diretório [.github/workflows](.github/workflows) é uma (uma dentro da outra) pasta especial que fica dentro do seu repositório no GitHub.
+
+> 👉 É onde você define os fluxos de automação que o GitHub deve executar automaticamente — chamados de workflows.
+
+Esses workflows são escritos em *YAML (.yml)*, e dizem ao GitHub:
+
+ - Quando executar algo (gatilhos/triggers como push, pull request, etc.);
+ - Em qual ambiente executar (como Ubuntu, Windows, etc.);
+ - O que deve ser executado (os comandos, scripts ou jobs).
+
+Por exemplo:
+
+```bash
+your-repo/
+│
+├── .github/
+│   └── workflows/
+│       ├── ci.yml
+│       └── deploy.yml
+```
+
+Cada arquivo `.yml` dentro de [.github/workflows](.github/workflows) representa um workflow independente.
+
+Por exemplo:
+
+ - `ci.yml` → Faz testes automáticos e checa o código (CI = Continuous Integration);
+ - `deploy.yml` → Envia o código para o servidor (CD = Continuous Deployment).
+
+#### `O que é um “workflow” no GitHub Actions?`
+
+Um *workflow* é composto de:
+
+ - **Trigger (gatilho)** → Quando ele deve rodar;
+ - **Jobs (tarefas)** → O que ele faz (como rodar testes, buildar imagem, etc.);
+ - **Steps (passos)** → Os comandos de cada tarefa
+
+#### `Exemplo real: CI para projeto Django`
+
+ - Baixa o código do repositório;
+ - Instala dependências do Django;
+ - Sobe um banco PostgreSQL temporário;
+ - Roda migrações e testes com pytest.
+ - Isso tudo automaticamente quando alguém faz:
+   - Um git push para develop ou main, ou
+   - Um Pull Request.
+
+#### Estrutura interna dos workflows YAML
+
+> Os workflows são definidos em `.github/workflows/*.yml`.
+
+Eles *"não são comandos de terminal"*, mas contêm palavras-chave (chaves) que se comportam como “comandos” dentro do pipeline.
+
+Principais chaves (em formato hierárquico):
+
+**1️⃣ name**
+```yaml
+name: Deploy do Django
+```
+
+ - Define o nome do workflow.
+
+**2️⃣ on**
+```yaml
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+  workflow_dispatch:
+```
+
+ - Especifica quando o workflow será executado.
+ - **Sub-chaves:**
+   - `push` → Dispara quando há push;
+   - `pull_request` → Dispara em PRs;
+   - `schedule` → Agenda com cron;
+   - `workflow_dispatch` → Permite execução manual.
+
+**3️⃣ jobs**
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+```
+
+ - Define os trabalhos (pipelines) a serem executados.
+ - Cada `job` é um conjunto independente de steps.
+
+**4️⃣ steps**
+```yaml
+steps:
+  - name: Checkout código
+    uses: actions/checkout@v4
+  - name: Instalar dependências
+    run: pip install -r requirements.txt
+```
+
+ - São as *etapas (steps)* executadas dentro de um *job*.
+ - **Sub-chaves:**
+   - `name` → Nome legível;
+   - `uses` → Usa uma action pronta (como um plugin);
+   - `run` → Executa comandos shell;
+   - `env` → Define variáveis de ambiente.
+
+`5️⃣ env`
+```yaml
+env:
+  DJANGO_SETTINGS_MODULE: core.settings
+```
+
+ - Define variáveis de ambiente globais ou locais.
+
+**6️⃣ secrets**
+```yaml
+env:
+  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+```
+
+ - Referência segredos armazenados no repositório.
+
+**7️⃣ needs**
+```yaml
+jobs:
+  deploy:
+    needs: build
+```
+
+ - Cria dependência entre jobs.
+
+**8️⃣ strategy / matrix**
+```yaml
+strategy:
+  matrix:
+    python-version: [3.10, 3.11, 3.12]
+```
+
+ - Permite rodar testes em múltiplas combinações (ex: versões do Python).
+
+#### `Cobrindo os testes com codecov.io`
+
+ - Acesse: https://app.codecov.io/gh
+ - Selecione seu repositório.
+ - **"Select a setup option"**:
+   - Selecione -> Using GitHub Actions
+ - **"Step 1: Output a Coverage report file in your CI"**
+   - Selecione -> Pytest
+ - ...
+ - **Step 3: add token as repository secret**
+   - Copie -> CODECOV_TOKEN
+   - Copie -> SUA-CHAVE-SECRETA
+   - **NOTE:** Você vai utilizar eles no workflow `.github/workflows/ci.yml` (ex: [env](#env)).
+
+Ótimo, agora você já tem a chave secreta para o Codecov, vá em:
+
+ - Seu projeto/settings;
+ - secrets and variables:
+   - Actions.
+
+Continuando, agora você vai clicar em `New repository secret` e adicionar:
+
+ - Name: CODECOV_TOKEN
+ - Secret: your-secret
+ - Finalmente, clicar em "Add Secret".
+
+[Em breve...](.github/workflows/)
+```yaml
+Em breve...
+```
+
+Por fim, vamos adicionar os badges do **Codecov** e do **Pipeline**:
+
+ - Para obter um *Pipeline badge*, altere o link abaixo para o repositório do seu projeto:
+   - `[![CI](https://github.com/drigols/musical-notes/actions/workflows/pipeline.yaml/badge.svg)](https://github.com/drigols/musical-notes/actions/workflows/pipeline.yaml)`
+ - Para obter um *Codecov badge*:
+   - Acesse [https://app.codecov.io/gh/](https://app.codecov.io/gh/)
+   - Selecione o projeto que está sendo monitorado pela cobertura de testes.
+   - Vá em **Settings > Badges & Graphs > Markdown** e copie o badge gerado:
+    - `[![codecov](https://codecov.io/gh/dota2learning/d2l/branch/main/graph/badge.svg?token=O2FMF315N4)](https://codecov.io/gh/dota2learning/d2l)`
 
 
 
