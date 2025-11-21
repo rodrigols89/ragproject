@@ -1,0 +1,13 @@
+services:
+  db:
+    image: postgres:15
+    networks:
+      - backend
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+
+networks:
+  backend:

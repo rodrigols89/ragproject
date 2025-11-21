@@ -1,0 +1,5 @@
+services:
+  db:
+    container_name: postgresql_prod
+    restart: always
+    env_file: .env

@@ -5,13 +5,19 @@
      - [`__init__.py`](#core-init-py)
      - [`asgi.py`](#core-asgi-py)
      - [`settings.py`](#core-settings-py)
+       - [`TEMPLATES = []`](#settings-templates)
+       - [`DATABASES = {}`](#settings-database)
      - [`urls.py`](#core-urls-py)
      - [`wsgi.py`](#core-wsgi-py)
+   - [tests/](#global-tests)
    - [`nginx/`](#nginx)
      - [`nginx.conf`](#nginx-conf)
    - [`.editorconfig`](#editorconfig)
    - [`.env`](#env)
    - [`.pre-commit-config.yaml`](#pre-commit-config-yaml)
+   - [`docker-compose.dev.yml (desenvolvimento)`](#)
+   - [`docker-compose.prod.yml (produção)`](#)
+   - [`docker-compose.yml (base)`](#)
    - [`pyproject.toml`](#pyproject-toml)
      - [`[tool.ruff]`](#tool-ruff)
      - [`[tool.pytest.ini_options]`](#tool-pytest-ini-options)
@@ -191,6 +197,207 @@ Ele contém todas as *configurações globais* do projeto, como:
  - Timezone;
  - Segurança.
 
+<div id="settings-templates"></div>
+
+#### `TEMPLATES = []`
+
+> O dicionário `TEMPLATES = []` diz ao Django onde ele deve procurar os templates.
+
+[core/settings.py](core/settings.py)
+```python
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [BASE_DIR / 'templates'],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+```
+
+<div id="settings-database"></div>
+
+#### `DATABASES = {}`
+
+Antes de começar a configurar o Django para reconhecer o PostgreSQL como Banco de Dados, vamos fazer ele reconhecer as variáveis de ambiente dentro de [core/settings.py](core/settings.py).
+
+Primeiro, vamos instalar o `python-dotenv`:
+
+```bash
+poetry add python-dotenv@latest
+```
+
+**Outra biblioteca importante que vamos instalar agora é a "psycopg2-binary", que vai servir como driver para o PostgreSQL:**
+```bash
+poetry add psycopg2-binary@latest
+```
+
+Agora, vamos iniciar uma instância de `python-dotenv`:
+
+[core/settings.py](core/settings.py)
+```python
+import os
+
+from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
+```
+
+> **Como testar que está funcionando?**
+
+Primeiro, imagine que nós temos as seguinte variáveis de ambiente:
+
+[.env](.env)
+```bash
+# ==========================
+# CONFIGURAÇÃO DO POSTGRES
+# ==========================
+POSTGRES_DB=easy_rag_db                     # Nome do banco de dados a ser criado
+POSTGRES_USER=easyrag                       # Usuário do banco
+POSTGRES_PASSWORD=easyragpass               # Senha do banco
+POSTGRES_HOST=db                            # Nome do serviço (container) do banco no docker-compose
+POSTGRES_PORT=5432                          # Porta padrão do PostgreSQL
+```
+
+Agora vamos abrir um **shell interativo do Django**, ou seja, um terminal Python (REPL) com o Django já carregado, permitindo testar código com acesso total ao projeto.
+
+É parecido com abrir um python normal, mas com estas diferenças:
+
+| Recurso                           | Python normal | `manage.py shell` |
+| --------------------------------- | ------------- | ----------------- |
+| Carrega o Django automaticamente  | ❌ Não       | ✅ Sim            |
+| Consegue acessar `settings.py`    | ❌           | ✅                |
+| Consegue acessar models           | ❌           | ✅                |
+| Consegue consultar banco de dados | ❌           | ✅                |
+| Lê o `.env` (se Django carregar)  | ❌           | ✅                |
+| Útil para debugar                 | Razoável      | Excelente         |
+
+```bash
+python manage.py shell
+```
+
+**OUTPUT:**
+```bash
+6 objects imported automatically (use -v 2 for details).
+Python 3.12.3 (main, Aug 14 2025, 17:47:21) [GCC 13.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+(InteractiveConsole)
+```
+
+**INPUT:**
+```python
+import os
+```
+
+**INPUT:**
+```bash
+print(os.getenv("POSTGRES_HOST"))
+```
+
+**OUTPUT:**
+```bash
+db
+```
+
+**INPUT:**
+```bash
+print(os.getenv("POSTGRES_PASSWORD"))
+```
+
+**OUTPUT:**
+```bash
+easyragpass
+```
+
+> **NOTE:**  
+> Vejam que realmente nós estamos conseguindo acessar as variáveis de ambiente.
+
+Continuando, agora vamos dizer ao Django qual Banco de Dados vamos utilizar.
+
+Por exemplo:
+
+[core/settings.py](core/settings.py)
+```python
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("POSTGRES_DB"),
+        "USER": os.getenv("POSTGRES_USER"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
+        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+        "PORT": os.getenv("POSTGRES_PORT", 5432),
+    }
+}
+```
+
+No exemplo acima nós temos um dicionário que informa ao Django como conectar ao banco de dados:
+
+ - `ENGINE`
+   - Qual backend/driver o Django usa — aqui, PostgreSQL.
+ - `NAME`
+   - Nome do banco.
+ - `USER`
+   - Usuário do banco.
+ - `PASSWORD`
+   - Senha do usuário.
+ - `HOST`
+   - Host/hostname do servidor de banco.
+ - `PORT`
+   - Porta TCP onde o Postgres escuta.
+
+#### `O que os.getenv('VAR', 'default') faz, exatamente?`
+
+`os.getenv` vem do módulo padrão `os` e faz o seguinte:
+
+ - Tenta ler a variável de ambiente chamada 'VAR' (por exemplo POSTGRES_DB);
+ - Se existir, retorna o valor da variável de ambiente;
+ - Se não existir, retorna o valor padrão passado como segundo argumento ('default').
+
+#### `Por que às vezes PASSAMOS um valor padrão (default) no código?`
+
+ - *Conforto no desenvolvimento local:* evita quebrar o projeto se você esquecer de definir `.env`.
+ - *Documentação inline:* dá uma ideia do nome esperado (easy_rag, 5432, etc.).
+ - *Teste rápido:* você pode rodar `manage.py` localmente sem carregar variáveis.
+
+> **NOTE:**  
+> Mas atenção: os valores padrões não devem conter segredos reais (ex.: supersecret) no repositório público — isso é um risco de segurança.
+
+#### `Por que não você não deveria colocar senhas no código?`
+
+ - Repositórios (Git) podem vazar ou ser lidos por terceiros.
+ - Código pode acabar em backups, imagens Docker, etc.
+ - Difícil rotacionar/chavear senhas se espalhadas pelo repositório.
+
+> **Regra prática:**  
+> - *"NUNCA"* colocar credenciais reais em `settings.py`.
+> - Use `.env` (não comitado) ou um *"secret manager"*.
+
+<div id="settings-static-staticfiles-media"></div>
+
+#### `/static/, /staticfiles & /media`
+
+[core/settings.py](core/settings.py)
+```python
+STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+```
+
+
+
+
+
+
 
 
 
@@ -251,6 +458,89 @@ Ou seja, quando você faz deploy tradicional, o servidor web chama o arquivo:
 ```bash
 core/wsgi.py
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--- ( tests/ ) --->
+
+---
+
+<div id="global-tests"></div>
+
+## `tests/`
+
+> A pasta `tests/` na raiz do projeto utilizada para testes gerais.
+
+#### ✅ Quando faz sentido ter uma pasta tests/ na raiz?
+
+A pasta `raiz/tests/` é útil quando você precisa testar coisas que não pertencem a nenhum app específico, como:
+
+ - **🔧 1. Testes de Settings:**
+   - Testar se variáveis de ambiente foram carregadas.
+   - Testar se configurações obrigatórias existem.
+   - Validar se `DEBUG`, `ALLOWED_HOSTS`, `DATABASES` foram definidos corretamente.
+ - **🗺 2. Testes de URLs globais:**
+   - Verificar se cada rota resolve para a view correta.
+   - Testar middlewares globais.
+   - Testar permissões gerais.
+ - **📦 3. Testes de Integração:**
+   - Algo que envolve múltiplos apps ao mesmo tempo.
+   - Testes de APIs que atravessam vários domínios.
+ - **🚀 4. Testes de inicialização do projeto:**
+   - Testar se o Django sobe sem erros.
+   - Testar se sinalizadores (signals) globais foram registrados.
+ - **🔐 5. Testes de segurança global:**
+   - CORS.
+   - CSRF.
+   - Rate-limiting.
+   - Configurações gerais de autenticação.
 
 
 
@@ -742,20 +1032,53 @@ repos:
         entry: task lint
         language: system
         types: [python]
-        exclude: ^(core/settings\.py|documents/migrations|users/adapter.py)
+        pass_filenames: false
+        exclude: ^(core/settings\.py|documents/migrations|users/adapter.py|workspace/migrations|workspace/urls.py)
 
       - id: pytest-test
         name: pytest test
         entry: task test
         language: system
         types: [python]
+        pass_filenames: false
+        exclude: ^(core/settings\.py)
 
       - id: pytest-coverage
         name: pytest coverage
         entry: task post_test
         language: system
         types: [python]
+        pass_filenames: false
+        exclude: ^(core/settings\.py)
 ```
+
+#### `pass_filenames: false`
+
+Antes, de começarmos com as explicações do código acima vamos entender a linha `pass_filenames: false`.
+
+> O `pass_filenames: false` faz com que o pre-commit execute o comando sem passar os arquivos modificados, forçando a execução global do comando — essencial para hooks como pytest.
+
+#### `Quando você deve usar pass_filenames: false?`
+
+ - **✔️ O comando *"não aceita nomes"* de arquivos:**
+   - pytest;
+   - coverage;
+   - task test;
+   - scripts customizados
+ - **✔️ Você quer rodar a ferramenta no projeto inteiro:**
+   - (ex.: lint geral, testes completos)
+ - **✔️ O hook não trabalha com arquivos individuais:**
+   - (ex.: gerar docs, buildar, rodar migrations)
+
+#### `❌ Quando NÃO usar?`
+
+Quando a ferramenta trabalha melhor recebendo somente arquivos alterados:
+
+ - ❌ ruff por arquivo;
+ - ❌ black por arquivo;
+ - ❌ isort por arquivo;
+ - ❌ prettier por arquivo.
+ - **NOTE:** Nesses casos, deixar pass_filenames habilitado (padrão) é o ideal.
 
 ```yaml
 repos:
@@ -838,6 +1161,299 @@ pre-commit run --all-files
 [tool.taskipy.tasks]
 precommit = 'pre-commit run --all-files'
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--- ( docker-compose.yml ) --->
+
+---
+
+<div id="docker-compose-dev"></div>
+
+## `docker-compose.dev.yml (desenvolvimento)`
+
+ - Hot reload (volumes com seu código local);
+ - Debug ativo;
+ - Erros mais verbosos;
+ - Servir arquivos estáticos pelo Django;
+ - Containers reiniciam automaticamente ao mudar código;
+ - Segurança NÃO é prioridade...
+
+#### `db`
+
+[docker-compose.dev.yml](docker-compose.dev.yml)
+```yaml
+services:
+  db:
+    container_name: postgresql_dev
+    restart: always
+    env_file: .env
+    ports:
+      - "5432:5432"
+```
+
+ - `db`
+   - Nome do *serviço (container)* criado pelo docker-compose.
+ - `container_name: postgresql_dev`
+   - Nome fixo do container (para facilitar comandos como docker logs postgresql).
+ - `restart: always`
+   - 🔹 O container vai voltar sempre que o Docker daemon subir, independente do motivo da parada.
+   - 🔹 Mesmo se você der *docker stop*, quando o host reiniciar o container volta sozinho.
+   - 👉 Bom para produção quando você quer *99% de disponibilidade*.
+ - `env_file: .env`
+   - Carrega variáveis de ambiente do arquivo `.env`.
+ - `ports: "5432:5432"`
+   - Útil em desenvolvimento quando desejar acessar pelo host:
+     - PgAdmin, DBeaver, debugging, etc.
+
+
+
+
+
+
+
+
+
+---
+
+<div id="docker-compose-prod"></div>
+
+## `docker-compose.prod.yml (produção)`
+
+ - Django rodando com gunicorn ou outro servidor WSGI;
+ - Sem hot reload;
+ - Sem volumes de código;
+ - Segurança reforçada;
+ - Arquivos estáticos servidos pelo Nginx;
+ - Sem ferramentas de debug;
+ - Configs específicas como:
+   - client_max_body_size no Nginx;
+   - Caches agressivos;
+   - Workers paralelos no Gunicorn
+
+#### `db`
+
+[docker-compose.prod.yml](docker-compose.prod.yml)
+```yaml
+services:
+  db:
+    container_name: postgresql_prod
+    restart: always
+    env_file: .env
+```
+
+ - `db`
+   - Nome do *serviço (container)* criado pelo docker-compose.
+ - `container_name: postgresql_prod`
+   - Nome fixo do container (para facilitar comandos como docker logs postgresql).
+ - `restart: always`
+   - 🔹 O container vai voltar sempre que o Docker daemon subir, independente do motivo da parada.
+   - 🔹 Mesmo se você der *docker stop*, quando o host reiniciar o container volta sozinho.
+   - 👉 Bom para produção quando você quer *99% de disponibilidade*.
+ - `env_file: .env`
+   - Carrega variáveis de ambiente do arquivo `.env`.
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="docker-compose"></div>
+
+## `docker-compose.yml (base)`
+
+ - Usado para definir serviços comuns.
+ - ➡️ Não define volumes de código e nem porta externa.
+
+[docker-compose.yml](docker-compose.yml)
+```yaml
+volumes:
+  postgres_data:
+
+networks:
+  backend:
+```
+
+#### `volumes + networks`
+
+Vamos começar explicando os `volumes` e `networks`:
+
+```yaml
+volumes:
+  postgres_data:
+
+networks:
+  backend:
+```
+
+ - **🗂 1. O que são "volumes"?**
+   - Volumes são lugares onde o Docker guarda dados de forma persistente.
+   - Sem volumes, tudo que está dentro do container é apagado quando ele reinicia, o que seria terrível para um banco de dados, por exemplo: `postgres_data`
+ - **🌐 2. O que são "networks"?**
+   - Networks são redes internas criadas pelo Docker para que containers se comuniquem.
+   - Por exemplo, `networks: backend:` cria uma rede chamada **backend**.
+   - E quando você atribui a rede a algum container significa, que:
+     - Este container “entra” na rede interna backend;
+     - Ele pode conversar com outros containers que também estejam na mesma rede;
+     - Ele pode usar o nome do container como hostname.
+
+#### `db`
+
+[docker-compose.yml](docker-compose.yml)
+```yaml
+services:
+  db:
+    image: postgres:15
+    networks:
+      - backend
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+```
+
+ - `db`
+   - Nome do *serviço (container)* criado pelo docker-compose.
+ - `image: postgres:15`
+   - Pega a versão 15 oficial do PostgreSQL no Docker Hub.
+ - `networks: backend`
+   - Atribui a rede *"backend"* ao container *"db"*.
+ - `volumes:`
+   - `postgres_data:` → Volume docker (Named Volume).
+   - `/var/lib/postgresql/data` → Pasta interna do container onde o Postgres armazena os dados.
+
+Agora vamos testar se está tudo bem no nosso container:
+
+```bash
+task opendb
+```
+
+Agora vamos listar as tabelas:
+
+```bash
+\dt+
+```
+
+**OUTPUT:**
+```bash
+                                               List of relations
+ Schema |            Name            | Type  |  Owner  | Persistence | Access method |    Size    | Description
+--------+----------------------------+-------+---------+-------------+---------------+------------+-------------
+ public | auth_group                 | table | easyrag | permanent   | heap          | 0 bytes    |
+ public | auth_group_permissions     | table | easyrag | permanent   | heap          | 0 bytes    |
+ public | auth_permission            | table | easyrag | permanent   | heap          | 8192 bytes |
+ public | auth_user                  | table | easyrag | permanent   | heap          | 16 kB      |
+ public | auth_user_groups           | table | easyrag | permanent   | heap          | 0 bytes    |
+ public | auth_user_user_permissions | table | easyrag | permanent   | heap          | 0 bytes    |
+ public | django_admin_log           | table | easyrag | permanent   | heap          | 8192 bytes |
+ public | django_content_type        | table | easyrag | permanent   | heap          | 8192 bytes |
+ public | django_migrations          | table | easyrag | permanent   | heap          | 16 kB      |
+ public | django_session             | table | easyrag | permanent   | heap          | 16 kB      |
+```
+
+Agora, vamos listas as colunas da tabela `auth_user`:
+
+```bash
+\d auth_user
+```
+
+**OUTPUT:**
+```bash
+                                     Table "public.auth_user"
+    Column    |           Type           | Collation | Nullable |             Default
+--------------+--------------------------+-----------+----------+----------------------------------
+ id           | integer                  |           | not null | generated by default as identity
+ password     | character varying(128)   |           | not null |
+ last_login   | timestamp with time zone |           |          |
+ is_superuser | boolean                  |           | not null |
+ username     | character varying(150)   |           | not null |
+ first_name   | character varying(150)   |           | not null |
+ last_name    | character varying(150)   |           | not null |
+ email        | character varying(254)   |           | not null |
+ is_staff     | boolean                  |           | not null |
+ is_active    | boolean                  |           | not null |
+ date_joined  | timestamp with time zone |           | not null |
+Indexes:
+    "auth_user_pkey" PRIMARY KEY, btree (id)
+    "auth_user_username_6821ab7c_like" btree (username varchar_pattern_ops)
+    "auth_user_username_key" UNIQUE CONSTRAINT, btree (username)
+Referenced by:
+    TABLE "auth_user_groups" CONSTRAINT "auth_user_groups_user_id_6a12ed8b_fk_auth_user_id" FOREIGN KEY (user_id) REFERENCES auth_user(id) DEFERRABLE INITIALLY DEFERRED
+    TABLE "auth_user_user_permissions" CONSTRAINT "auth_user_user_permissions_user_id_a95ead1b_fk_auth_user_id" FOREIGN KEY (user_id) REFERENCES auth_user(id) DEFERRABLE INITIALLY DEFERRED
+    TABLE "django_admin_log" CONSTRAINT "django_admin_log_user_id_c564eba6_fk_auth_user_id" FOREIGN KEY (user_id) REFERENCES auth_user(id) DEFERRABLE INITIALLY DEFERRED
+```
+
+Por fim, vamos listar todos os usuários (com suas colunas) já cadastrados no Banco de Dados:
+
+```bash
+select * from auth_user;
+```
+
+**OUTPUT:**
+```bash
+ id |                                         password                                          |          last_login           | is_superuser | username | first_name | last_name |           email            | is_staff | is_active |          date_joined
+----+-------------------------------------------------------------------------------------------+-------------------------------+--------------+----------+------------+-----------+----------------------------+----------+-----------+-------------------------------
+  2 | pbkdf2_sha256$1000000$Q77ZUEe8nNZFT3DLvOBMRf$pLgNiCmXRUEaX0XGmC+JX8jTrNqS5I6QMVuutC3ypTw= |                               | f            | rodrigo  |            |           | rodrigo.praxedes@gmail.com | f        | t         | 2025-10-21 10:30:23.466991+00
+  3 | pbkdf2_sha256$1000000$93BBiOAKodPLbmgJJtbfBY$HLYRqEN5oCfmZKsA0iGkbbG+KbITmlz26BDl2xRMGbs= | 2025-11-02 09:19:36.900889+00 | f            | romario  |            |           | romario@gmail.com          | f        | t         | 2025-10-28 00:52:23.111699+00
+  4 | pbkdf2_sha256$1000000$AW4kQwpGOjvxBWaCg5EMkC$+YnHIhK29DhI8PMJQyx3SIuOnCHGUJgvuuc0XNDrEKs= | 2025-11-02 09:36:10.701396+00 | f            | brenda   |            |           | brenda@gmail.com           | f        | t         | 2025-11-02 09:36:05.24123+00
+  1 | pbkdf2_sha256$1000000$TwwCgqC0kp0GRli3xEyzhO$5r01g9G+sbI99a9a6cvgky5XudMjI/ADg+t5wO+1tHw= | 2025-11-02 10:07:32.909962+00 | t            | drigols  |            |           | drigols.creative@gmail.com | t        | t         | 2025-10-21 09:01:46.482399+00
+(4 rows)
+```
+
+
+
 
 
 
@@ -1006,7 +1622,6 @@ quote-style = "double"
 
 
 
-
 ---
 
 <div id="tool-pytest-ini-options"></div>
@@ -1017,13 +1632,22 @@ quote-style = "double"
 poetry add --group dev pytest@latest
 ```
 
+```bash
+poetry add --group dev pytest-cov@latest
+```
+
+```bash
+poetry add --group dev pytest-django@latest
+```
+
 O bloco `[tool.pytest.ini_options]` no `pyproject.toml` é usado para configurar o comportamento do Pytest, da mesma forma que você faria com `pytest.ini`, `setup.cfg` ou `tox.ini`:
 
 [pyproject.toml](pyproject.toml)
 ```toml
 [tool.pytest.ini_options]
 pythonpath = "."
-addopts = '-p no:warnings'
+addopts = "-p no:warnings"
+DJANGO_SETTINGS_MODULE = "core.settings"
 ```
 
  - `pythonpath = "."`
@@ -1031,8 +1655,26 @@ addopts = '-p no:warnings'
    - Ou seja, a partir da `raiz (.)` do nosso projeto.
  - `addopts = '-p no:warnings'`
    - Para ter uma visualização mais limpa dos testes, caso alguma biblioteca exiba uma mensagem de warning, isso será suprimido pelo pytest.
+ - `DJANGO_SETTINGS_MODULE = "core.settings"`
+   - Ela diz ao Django:
+     - *“Use o arquivo core/settings.py como arquivo principal de configurações.”*
+   - Assim:
+     - O Django inicializa totalmente.
+     - Carrega INSTALLED_APPS.
+     - Carrega banco de dados.
+     - Carrega middleware.
+     - Carrega URLs.
+     - Carrega templates.
+     - Carrega auth, admin, etc.
+   - **NOTE:** Sem essa linha, o Django não funciona durante os testes.
 
+**🧠 Diferença dos outros campos**
 
+| Configuração                 | Serve para                                                     |
+| ---------------------------- | -------------------------------------------------------------- |
+| `pythonpath = "."`           | Onde importar módulos (raiz do projeto)                        |
+| `addopts`                    | Opções extras do pytest                                        |
+| `DJANGO_SETTINGS_MODULE`     | Define qual arquivo de configurações Django será carregado     |
 
 
 
