@@ -1,0 +1,42 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths-ignore:
+      - "README.md"
+      - "**/*.md"
+      - "**/*.txt"
+      - "docs/**"
+  pull_request:
+    branches: [ main, develop ]
+    paths-ignore:
+      - "README.md"
+      - "**/*.md"
+      - "**/*.txt"
+      - "docs/**"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies for lint
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install ruff
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run Ruff (lint)
+        run: |
+          source .venv/bin/activate
+          ruff check .
