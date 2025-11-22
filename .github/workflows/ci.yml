@@ -1,8 +1,20 @@
+name: Lint & Test CI
+
 on:
   push:
     branches: [ main, develop ]
+    paths-ignore:
+      - "README.md"
+      - "**/*.md"
+      - "**/*.txt"
+      - "docs/**"
   pull_request:
     branches: [ main, develop ]
+    paths-ignore:
+      - "README.md"
+      - "**/*.md"
+      - "**/*.txt"
+      - "docs/**"
 
 jobs:
   lint:

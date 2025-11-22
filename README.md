@@ -1,7 +1,11 @@
+[![CI](https://github.com/rodrigols89/ragproject/actions/workflows/ci.yml/badge.svg)](https://github.com/rodrigols89/ragproject/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/github/rodrigols89/ragproject/graph/badge.svg?token=IJSJKHK58C)](https://codecov.io/github/rodrigols89/ragproject)
+
 # RAG Project
 
  - **Project Structure:**
    - [`.github/workflows`](#github-workflows)
+     - [`ci.yml`](#github-workflows-ci-yml)
    - [`core/`](#core-project)
      - [`__init__.py`](#core-init-py)
      - [`asgi.py`](#core-asgi-py)
@@ -86,11 +90,11 @@
 
 ## `.github/workflows`
 
-O diretório [.github/workflows](.github/workflows) é uma (uma dentro da outra) pasta especial que fica dentro do seu repositório no GitHub.
+O diretório [.github/workflows](.github/workflows) é uma pasta especial que fica dentro do seu repositório no GitHub.
 
 > 👉 É onde você define os fluxos de automação que o GitHub deve executar automaticamente — chamados de workflows.
 
-Esses workflows são escritos em *YAML (.yml)*, e dizem ao GitHub:
+Esses workflows são escritos em `YAML (.yml)`, e dizem ao GitHub:
 
  - Quando executar algo (gatilhos/triggers como push, pull request, etc.);
  - Em qual ambiente executar (como Ubuntu, Windows, etc.);
@@ -122,107 +126,6 @@ Um *workflow* é composto de:
  - **Jobs (tarefas)** → O que ele faz (como rodar testes, buildar imagem, etc.);
  - **Steps (passos)** → Os comandos de cada tarefa
 
-#### `Exemplo real: CI para projeto Django`
-
- - Baixa o código do repositório;
- - Instala dependências do Django;
- - Sobe um banco PostgreSQL temporário;
- - Roda migrações e testes com pytest.
- - Isso tudo automaticamente quando alguém faz:
-   - Um git push para develop ou main, ou
-   - Um Pull Request.
-
-#### Estrutura interna dos workflows YAML
-
-> Os workflows são definidos em `.github/workflows/*.yml`.
-
-Eles *"não são comandos de terminal"*, mas contêm palavras-chave (chaves) que se comportam como “comandos” dentro do pipeline.
-
-Principais chaves (em formato hierárquico):
-
-**1️⃣ name**
-```yaml
-name: Deploy do Django
-```
-
- - Define o nome do workflow.
-
-**2️⃣ on**
-```yaml
-on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-  workflow_dispatch:
-```
-
- - Especifica quando o workflow será executado.
- - **Sub-chaves:**
-   - `push` → Dispara quando há push;
-   - `pull_request` → Dispara em PRs;
-   - `schedule` → Agenda com cron;
-   - `workflow_dispatch` → Permite execução manual.
-
-**3️⃣ jobs**
-```yaml
-jobs:
-  build:
-    runs-on: ubuntu-latest
-```
-
- - Define os trabalhos (pipelines) a serem executados.
- - Cada `job` é um conjunto independente de steps.
-
-**4️⃣ steps**
-```yaml
-steps:
-  - name: Checkout código
-    uses: actions/checkout@v4
-  - name: Instalar dependências
-    run: pip install -r requirements.txt
-```
-
- - São as *etapas (steps)* executadas dentro de um *job*.
- - **Sub-chaves:**
-   - `name` → Nome legível;
-   - `uses` → Usa uma action pronta (como um plugin);
-   - `run` → Executa comandos shell;
-   - `env` → Define variáveis de ambiente.
-
-`5️⃣ env`
-```yaml
-env:
-  DJANGO_SETTINGS_MODULE: core.settings
-```
-
- - Define variáveis de ambiente globais ou locais.
-
-**6️⃣ secrets**
-```yaml
-env:
-  SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-```
-
- - Referência segredos armazenados no repositório.
-
-**7️⃣ needs**
-```yaml
-jobs:
-  deploy:
-    needs: build
-```
-
- - Cria dependência entre jobs.
-
-**8️⃣ strategy / matrix**
-```yaml
-strategy:
-  matrix:
-    python-version: [3.10, 3.11, 3.12]
-```
-
- - Permite rodar testes em múltiplas combinações (ex: versões do Python).
-
 #### `Cobrindo os testes com codecov.io`
 
  - Acesse: https://app.codecov.io/gh
@@ -245,24 +148,278 @@ strategy:
 
 Continuando, agora você vai clicar em `New repository secret` e adicionar:
 
- - Name: CODECOV_TOKEN
- - Secret: your-secret
+ - Name: `CODECOV_TOKEN`
+ - Secret: `YOUR-CODECOV-TOKEN`
  - Finalmente, clicar em "Add Secret".
-
-[Em breve...](.github/workflows/)
-```yaml
-Em breve...
-```
 
 Por fim, vamos adicionar os badges do **Codecov** e do **Pipeline**:
 
  - Para obter um *Pipeline badge*, altere o link abaixo para o repositório do seu projeto:
-   - `[![CI](https://github.com/drigols/musical-notes/actions/workflows/pipeline.yaml/badge.svg)](https://github.com/drigols/musical-notes/actions/workflows/pipeline.yaml)`
+   - `[![CI](https://github.com/rodrigols89/ragproject/actions/workflows/ci.yml/badge.svg)](https://github.com/rodrigols89/ragproject/actions/workflows/ci.yml)`
  - Para obter um *Codecov badge*:
    - Acesse [https://app.codecov.io/gh/](https://app.codecov.io/gh/)
    - Selecione o projeto que está sendo monitorado pela cobertura de testes.
    - Vá em **Settings > Badges & Graphs > Markdown** e copie o badge gerado:
-    - `[![codecov](https://codecov.io/gh/dota2learning/d2l/branch/main/graph/badge.svg?token=O2FMF315N4)](https://codecov.io/gh/dota2learning/d2l)`
+    - ``
+
+<div id="github-workflows-ci-yml"></div>
+
+#### `ci.yml`
+
+> Esse *workflow* automatiza tarefas que devem rodar sempre que você faz `push` ou abre um `pull request`.
+
+No nosso caso, ele executa:
+
+ - Instalação do Python;
+ - Instalação das dependências;
+ - Lint com Ruff;
+ - Testes com Pytest;
+ - Geração de cobertura de testes;
+ - Upload da cobertura para o Codecov,
+
+> **NOTE:**  
+> Ou seja: **ele garante que seu código está saudável antes de ser aceito no repositório**.
+
+#### Por que o nome "CI"?
+
+> **CI = Continuous Integration (Integração Contínua)**
+
+Significa que toda mudança no código é automaticamente:
+
+ - Testada;
+ - Analisada;
+ - Validada.
+
+Antes de ser integrada ao projeto.
+
+[ci.yml](.github/workflows/ci.yml)
+```yaml
+name: Lint & Test CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths-ignore:
+      - "README.md"
+      - "**/*.md"
+      - "**/*.txt"
+      - "docs/**"
+  pull_request:
+    branches: [ main, develop ]
+    paths-ignore:
+      - "README.md"
+      - "**/*.md"
+      - "**/*.txt"
+      - "docs/**"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies for lint
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install ruff
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run Ruff (lint)
+        run: |
+          source .venv/bin/activate
+          ruff check .
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies for tests
+        run: |
+          python -m venv .venv
+          source .venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run tests + coverage
+        run: |
+          source .venv/bin/activate
+          pytest --cov=. --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          verbose: true
+```
+
+Agora, vamos explicar algumas partes do código acima:
+
+```yaml
+name: Lint & Test CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths-ignore:
+      - "README.md"
+      - "**/*.md"
+      - "**/*.txt"
+      - "docs/**"
+  pull_request:
+    branches: [ main, develop ]
+    paths-ignore:
+      - "README.md"
+      - "**/*.md"
+      - "**/*.txt"
+      - "docs/**"
+```
+ - `name: Lint & Test CI` → Nome visível do workflow no GitHub Actions.
+ - `on:` → Você pode pensar no comando `on`, como: "Toda vez que o repositório receber o comando *x ("push" e "pull_request" no nosso caso)*.
+   - `push:` → Gatilho (trigger) do workflow.
+     - `branches: [ main, develop ]` → Branches que executarão as tarefas são `main` e `develop`.
+     - `paths-ignore:` → Mudanças em `README.md`, `.md`, `.txt`, e até `docs/` não ativam esse CI.
+   - `pull_request:` → Gatilho (trigger) do workflow.
+     - `branches: [ main, develop ]` → Branches que executarão as tarefas são `main` e `develop`.
+     - `paths-ignore:` → Mudanças em `README.md`, `.md`, `.txt`, e até `docs/` não ativam esse CI.
+
+```yaml
+jobs:
+  ...
+```
+
+Um workflow pode ter vários `jobs` (testar, build, deploy, lint, etc.).
+
+Cada job:
+
+ - Roda em um runner separado;
+ - Pode ser paralelo ou sequencial;
+ - Contém steps (passos);
+ - **NOTE:** É como um container de tarefas.
+
+```yaml
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    ...
+
+  test:
+    runs-on: ubuntu-latest
+```
+
+No código acima nós temos *2 jobs*:
+
+ - `lint` e `test`:
+   - Cada um rodando em uma *runner (Ubuntu)* separada.
+
+Agora vamos explicar os jobs separadamente (e também explicar só o necessário, sem repetir o que já foi explicado em outras partes do README):
+
+```yaml
+lint:
+  runs-on: ubuntu-latest
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
+
+    - name: Install dependencies for lint
+      run: |
+        python -m venv .venv
+        source .venv/bin/activate
+        python -m pip install --upgrade pip
+        pip install ruff
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+```
+
+ - `lint` → É o nome da tarefa (job).
+   - `runs-on: ubuntu-latest` → A *runner (SO)* que vai rodar essa tarefa.
+   - `steps` → Uma lista de passos que vão ser executados na runner.
+     - `name: Checkout`
+     - `uses: actions/checkout@v4` → Diz ao GitHub que queremos usar a Action oficial para clonar o repositório.
+     - `name: Set up Python`
+     - `uses: actions/setup-python@v4` → Action oficial que instala Python.
+       - `with:` → Parâmetros da action.
+         - `python-version: "3.12"` → Diz qual versão instalar.
+     - `name: Install dependencies`
+     - `run: |` → Vai executar comandos de shell, e o `|` permite escrever múltiplas linhas de comandos.
+       - `python -m venv .venv` → Cria um ambiente virtual.
+       - `source .venv/bin/activate` → Ativa o ambiente virtual.
+       - `python -m pip install --upgrade pip` → Atualiza o pip.
+       - `pip install ruff pytest pytest-cov` → Instala ferramentas utilizadas no CI.
+       - `if [ -f requirements.txt ]; then pip install -r requirements.txt; fi`
+         - Instala dependências do seu projeto somente se o arquivo existir.
+     - `name: Run Ruff (lint)`
+       - `run: |` → Vai executar comandos de shell, e o `|` permite escrever múltiplas linhas de comandos.
+         - `source .venv/bin/activate` → Ativa o venv.
+         - `ruff check .` → Roda o Ruff em todo o repositório.
+
+> **O comando `name:` pode ser qualquer texto.**  
+> Ele serve apenas como identificador visual no *GitHub Actions*, para você conseguir ler no painel.
+
+```yaml
+test:
+  runs-on: ubuntu-latest
+  needs: lint
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
+
+    - name: Install dependencies for tests
+      run: |
+        python -m venv .venv
+        source .venv/bin/activate
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Run tests + coverage
+      run: |
+        source .venv/bin/activate
+        pytest --cov=. --cov-report=xml
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: true
+        verbose: true
+```
+
+ - `needs: lint` → Diz que essa tarefa depende (só vai ser executada depois) da tarefa `lint`.
+ - `name: Upload coverage to Codecov`
+ - `uses: codecov/codecov-action@v4` → Usa a Action oficial do Codecov.
+   - `with:`
+     - `token: ${{ secrets.CODECOV_TOKEN }}` → Token armazenado nos “Secrets” do repositório.
+     - `fail_ci_if_error: true` → Se o upload falhar -> o job falha.
+     - `verbose: true` → Mostra logs detalhados.
+
 
 
 
