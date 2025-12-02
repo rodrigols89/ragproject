@@ -18,6 +18,8 @@ dependencies = [
     "requests (>=2.32.5,<3.0.0)"
 ]
 
+################### ( Ruff Settings ) ####################
+
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.14.0"
 pytest = "^8.4.2"
@@ -38,36 +40,42 @@ exclude = [
 preview = true
 select = ['I', 'F', 'E', 'W', 'PL', 'PT']
 
-[tool.pytest.ini_options]
-pythonpath = "."
-addopts = '-p no:warnings'
-
-[build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+################## ( Taskipy Settings ) ##################
 
 [tool.taskipy.tasks]
+# ----------------------- ( Linting ) -----------------------
+pre_lint = 'ruff check --fix'
 lint = 'ruff check'
-pre_format = 'ruff check --fix'
-format = 'ruff format'
+# ---------------------- ( pre-commit ) ---------------------
 precommit = 'pre-commit run --all-files'
-pre_test = 'task lint'
-test = 'pytest -s -x --cov=. -vv'
-post_test = 'coverage html'
+# ------------------- ( Django Management ) -----------------
+localserver = 'python manage.py runserver'
 killserver = 'sudo kill -9 $(sudo lsof -t -i:8000)'  # Kill service/port 8000
-opendb = 'docker exec -it postgresql psql -U easyrag -d easy_rag_db'
-openweb = 'docker exec -it django bash'
-opennginx = 'docker exec -it nginx_reverse_proxy bash'
-openredis = 'docker exec -it redis_cache bash'
-createsuperuser = 'docker compose exec web python manage.py createsuperuser'
+createuser = 'docker compose exec web python manage.py createsuperuser'
 migrate = 'docker compose exec web python manage.py migrate'
 makemigrations = 'docker compose exec web python manage.py makemigrations'
-restartc = 'docker restart $(docker ps -q)'
-rebuildc = 'docker compose up --build -d'
-cleanc = """
+# ------------------- ( Docker Management ) -----------------
+composes = 'docker compose up -d'
+rcomposes = 'docker restart $(docker ps -q)'
+rbcomposes = 'docker compose up --build -d'
+ccomposes = """
 docker stop $(docker ps -aq) 2>/dev/null || true &&
 docker rm $(docker ps -aq) 2>/dev/null || true &&
 docker rmi -f $(docker images -aq) 2>/dev/null || true &&
 docker volume rm $(docker volume ls -q) 2>/dev/null || true &&
 docker system prune -a --volumes -f
 """
+# --------------------- ( Docker Exec ) ---------------------
+opendb = 'docker exec -it postgresql psql -U easyrag -d easy_rag_db'
+openweb = 'docker exec -it django bash'
+opennginx = 'docker exec -it nginx_reverse_proxy bash'
+openredis = 'docker exec -it redis_cache bash'
+# --------------------- ( Poetry Exports ) --------------------
+exportdev = 'poetry export --without-hashes --with dev --format=requirements.txt --output=requirements-dev.txt'
+exportprod = 'poetry export --without-hashes --format=requirements.txt --output=requirements.txt'
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+

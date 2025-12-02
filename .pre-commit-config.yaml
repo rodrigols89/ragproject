@@ -6,18 +6,12 @@ repos:
         entry: task lint
         language: system
         types: [python]
-        exclude: ^(core/settings\.py|documents/migrations|users/adapter.py|workspace/migrations|workspace/urls.py)
-
-      #- id: pytest-test
-      #  name: pytest test
-      #  entry: task test
-      #  language: system
-      #  types: [python]
-      #  exclude: ^(core/settings\.py)
-
-      #- id: pytest-coverage
-      #  name: pytest coverage
-      #  entry: task post_test
-      #  language: system
-      #  types: [python]
-      #  exclude: ^(core/settings\.py)
+        pass_filenames: false
+        exclude: >
+          ^(
+            core/settings\.py|
+            documents/migrations|
+            users/adapter.py|
+            workspace/migrations|
+            workspace/urls.py
+          )

@@ -1,5 +1,5 @@
-from datetime import timezone
 import os
+from datetime import timezone
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -54,7 +54,6 @@ def workspace_home(request):
     }
 
     return render(request, "pages/workspace_home.html", context)
-
 
 
 @login_required(login_url="/")
@@ -204,6 +203,7 @@ def build_breadcrumbs(folder):
         folder = folder.parent
     return breadcrumbs
 
+
 @login_required(login_url="/")
 def delete_folder(request, folder_id):
     folder = get_object_or_404(Folder, id=folder_id, owner=request.user)
@@ -221,6 +221,7 @@ def delete_folder(request, folder_id):
         return redirect(f"/workspace?folder={parent.id}")
 
     return redirect("workspace_home")
+
 
 @login_required(login_url="/")
 def delete_file(request, file_id):
