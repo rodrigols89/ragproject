@@ -10,7 +10,7 @@ services:
       - backend
   redis:
     image: redis:7
-    container_name: redis_cache
+    container_name: redis
     restart: always
     volumes:
       - redis_data:/data
@@ -23,11 +23,14 @@ services:
     container_name: django
     restart: always
     env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: core.settings
     command: >
       sh -c "
+      until nc -z ${POSTGRES_HOST} ${POSTGRES_PORT}; do echo '⏳ Waiting for Postgres...'; sleep 2; done &&
       python manage.py migrate &&
       python manage.py collectstatic --noinput &&
-      python manage.py runserver 0.0.0.0:8000
+      python manage.py runserver ${DJANGO_HOST:-0.0.0.0}:${DJANGO_PORT:-8000}
       "
     volumes:
       - .:/code
@@ -42,7 +45,7 @@ services:
       - backend
   nginx:
     image: nginx:1.27
-    container_name: nginx_reverse_proxy
+    container_name: nginx
     restart: always
     ports:
       - "80:80"

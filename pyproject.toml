@@ -18,6 +18,7 @@ dependencies = [
     "requests (>=2.32.5,<3.0.0)"
 ]
 
+
 ################### ( Ruff Settings ) ####################
 
 [tool.poetry.group.dev.dependencies]
@@ -39,6 +40,7 @@ exclude = [
 [tool.ruff.lint]
 preview = true
 select = ['I', 'F', 'E', 'W', 'PL', 'PT']
+
 
 ################## ( Taskipy Settings ) ##################
 
@@ -68,8 +70,8 @@ docker system prune -a --volumes -f
 # --------------------- ( Docker Exec ) ---------------------
 opendb = 'docker exec -it postgresql psql -U easyrag -d easy_rag_db'
 openweb = 'docker exec -it django bash'
-opennginx = 'docker exec -it nginx_reverse_proxy bash'
-openredis = 'docker exec -it redis_cache bash'
+opennginx = 'docker exec -it nginx bash'
+openredis = 'docker exec -it redis bash'
 # --------------------- ( Poetry Exports ) --------------------
 exportdev = 'poetry export --without-hashes --with dev --format=requirements.txt --output=requirements-dev.txt'
 exportprod = 'poetry export --without-hashes --format=requirements.txt --output=requirements.txt'
