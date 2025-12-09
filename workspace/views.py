@@ -97,7 +97,7 @@ def create_folder(request):
                 messages.success(
                     request, f"Pasta '{name}' criada com sucesso!"
                 )
-                return redirect(request.POST.get("next", "workspace"))
+                return redirect(request.POST.get("next", "workspace_home"))
 
         # ---------------------------------------------------------------
         # ❗ Se houver erro, reconstruir contexto da pasta correta
@@ -134,7 +134,7 @@ def create_folder(request):
         return render(request, "pages/workspace_home.html", context)
 
     # Se método não for POST, redireciona para a home
-    return redirect("workspace")
+    return redirect("workspace_home")
 
 
 @login_required(login_url="/")
@@ -300,7 +300,8 @@ def rename_file(request, file_id):
         messages.error(request, "O nome do arquivo não pode ser vazio.")
         return redirect(next_url)
 
-    # impedir duplicatas no mesmo diretório (case-insensitive), exceto o próprio
+    # impedir duplicatas no mesmo diretório (case-insensitive),
+    # exceto o próprio
     if File.objects.filter(
         uploader=request.user,
         folder=file.folder,
@@ -361,8 +362,11 @@ def move_item(request):
         )
 
         if target_folder and _is_descendant(folder, target_folder):
+            error_message = (
+                "Não é possível mover a pasta para dentro dela mesma."
+            )
             return JsonResponse(
-                {"error": "Não é possível mover a pasta para dentro dela mesma."},
+                {"error": error_message},
                 status=400,
             )
 

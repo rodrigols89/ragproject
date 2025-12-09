@@ -295,11 +295,19 @@
             cancelButtons.forEach(btn => {
                 btn.addEventListener("click", function () {
                     clearModalFields();
+                    modal.close();
+                    if (window.location.pathname.startsWith("/create-folder")) {
+                        window.location.href = "/workspace";
+                    }
                 });
             });
 
             modal.addEventListener("cancel", function () {
                 clearModalFields();
+                    modal.close();
+                    if (window.location.pathname.startsWith("/create-folder")) {
+                        window.location.href = "/workspace";
+                    }
             });
 
             if (openCreateBtn) {
