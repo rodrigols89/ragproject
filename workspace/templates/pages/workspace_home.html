@@ -289,6 +289,13 @@
 
             let selectedItem = null;
 
+            function clearSelection() {
+                selectableItems.forEach(el => el.classList.remove("ring-2", "ring-blue-500"));
+                selectedItem = null;
+                deleteButton.disabled = true;
+                renameButton.disabled = true;
+            }
+
             selectableItems.forEach(item => {
                 item.addEventListener("click", (event) => {
                     event.preventDefault();
@@ -363,6 +370,13 @@
                     renameForm.action = `/rename-file/${id}/`;
                 } else {
                     event.preventDefault();
+                }
+            });
+
+            // Esc limpa a seleção
+            document.addEventListener("keydown", (event) => {
+                if (event.key === "Escape") {
+                    clearSelection();
                 }
             });
         });
