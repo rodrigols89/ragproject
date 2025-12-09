@@ -5,7 +5,16 @@ from django.core.exceptions import ValidationError
 MAX_FILE_MB = 100
 MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024
 
-ALLOWED_EXTENSIONS = {".pdf", ".txt", ".doc", ".docx"}
+ALLOWED_EXTENSIONS = {
+    ".pdf",
+    ".txt",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".xlsm",
+    ".csv"
+}
 ALLOWED_FORMATTED = ", ".join(ext.upper() for ext in ALLOWED_EXTENSIONS)
 
 
