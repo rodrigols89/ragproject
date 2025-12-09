@@ -78,7 +78,7 @@
             {% endif %}
 
             <!-- 📌 Botões -->
-            <div class="mb-6">
+            <div class="mb-6 flex items-center gap-3 flex-wrap">
                 <button command="show-modal" commandfor="create_folder_modal"
                         class="inline-block bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
                     ➕ Nova Pasta
@@ -93,6 +93,16 @@
                         📤 Fazer Upload
                         <input type="file" name="file" multiple class="hidden" onchange="this.form.submit()">
                     </label>
+                </form>
+
+                <button id="delete_selected"
+                        class="inline-block bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled>
+                    🗑 Remover
+                </button>
+
+                <form id="delete_form" method="post" class="hidden">
+                    {% csrf_token %}
                 </form>
             </div>
 
@@ -162,7 +172,8 @@
                     <!-- Pastas -->
                     {% for folder in folders %}
                         <li class="bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer selectable-item"
-                            data-url="?folder={{ folder.id }}" data-target="_self">
+                            data-url="?folder={{ folder.id }}" data-target="_self"
+                            data-kind="folder" data-id="{{ folder.id }}">
                             <div class="block">
                                 <span class="text-gray-800 font-semibold flex items-center space-x-2">
                                     <span>📁</span>
@@ -175,7 +186,8 @@
                     <!-- Arquivos -->
                     {% for file in files %}
                         <li class="bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer selectable-item"
-                            data-url="{{ file.file.url }}" data-target="_blank">
+                            data-url="{{ file.file.url }}" data-target="_blank"
+                            data-kind="file" data-id="{{ file.id }}">
                             <div class="block">
                                 <span class="text-gray-800 font-semibold flex items-center space-x-2">
                                     <span>📄</span>
@@ -207,6 +219,8 @@
             const input = modal.querySelector("#nome_pasta");
             const serverError = document.getElementById("server-error");
             const cancelButtons = modal.querySelectorAll("button[command='close']");
+            const deleteButton = document.getElementById("delete_selected");
+            const deleteForm = document.getElementById("delete_form");
 
             function clearModalFields() {
                 input.value = "";
@@ -229,11 +243,15 @@
             // ---------------------------
             const selectableItems = document.querySelectorAll(".selectable-item");
 
+            let selectedItem = null;
+
             selectableItems.forEach(item => {
                 item.addEventListener("click", (event) => {
                     event.preventDefault();
                     selectableItems.forEach(el => el.classList.remove("ring-2", "ring-blue-500"));
                     item.classList.add("ring-2", "ring-blue-500");
+                    selectedItem = item;
+                    deleteButton.disabled = false;
                 });
 
                 item.addEventListener("dblclick", () => {
@@ -247,6 +265,27 @@
                         window.location.href = url;
                     }
                 });
+            });
+
+            deleteButton.addEventListener("click", (event) => {
+                event.preventDefault();
+                if (!selectedItem) return;
+
+                const kind = selectedItem.dataset.kind;
+                const id = selectedItem.dataset.id;
+                if (!kind || !id) return;
+
+                let action = "";
+                if (kind === "folder") {
+                    action = `/delete-folder/${id}/`;
+                } else if (kind === "file") {
+                    action = `/delete-file/${id}/`;
+                }
+
+                if (action) {
+                    deleteForm.action = action;
+                    deleteForm.submit();
+                }
             });
         });
     </script>

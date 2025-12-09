@@ -1,9 +1,9 @@
 import os
-from datetime import timezone
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 
 from .forms import FolderForm
 from .models import File, Folder
@@ -21,10 +21,14 @@ def workspace_home(request):
         )
 
         # Subpastas da pasta atual
-        folders = Folder.objects.filter(parent=current_folder)
+        folders = Folder.objects.filter(
+            parent=current_folder, is_deleted=False
+        )
 
         # Arquivos da pasta atual
-        files = File.objects.filter(folder=current_folder)
+        files = File.objects.filter(
+            folder=current_folder, is_deleted=False
+        )
 
         # Breadcrumbs (caminho completo)
         breadcrumbs = []
@@ -39,10 +43,12 @@ def workspace_home(request):
         current_folder = None
 
         folders = Folder.objects.filter(
-            owner=request.user, parent__isnull=True
+            owner=request.user, parent__isnull=True, is_deleted=False
         )
 
-        files = File.objects.filter(uploader=request.user, folder__isnull=True)
+        files = File.objects.filter(
+            uploader=request.user, folder__isnull=True, is_deleted=False
+        )
 
         breadcrumbs = []  # Raiz não tem caminho
 
@@ -56,7 +62,6 @@ def workspace_home(request):
     return render(request, "pages/workspace_home.html", context)
 
 
-@login_required(login_url="/")
 @login_required(login_url="/")
 def create_folder(request):
     if request.method == "POST":
@@ -100,16 +105,20 @@ def create_folder(request):
         # Recupere novamente *tudo* como na workspace_home
         if parent_folder:
             # Estamos dentro de uma pasta
-            folders = Folder.objects.filter(parent=parent_folder)
-            files = File.objects.filter(folder=parent_folder)
+            folders = Folder.objects.filter(
+                parent=parent_folder, is_deleted=False
+            )
+            files = File.objects.filter(
+                folder=parent_folder, is_deleted=False
+            )
             breadcrumbs = build_breadcrumbs(parent_folder)
         else:
             # Estamos na raiz
             folders = Folder.objects.filter(
-                owner=request.user, parent__isnull=True
+                owner=request.user, parent__isnull=True, is_deleted=False
             )
             files = File.objects.filter(
-                uploader=request.user, folder__isnull=True
+                uploader=request.user, folder__isnull=True, is_deleted=False
             )
             breadcrumbs = []
 

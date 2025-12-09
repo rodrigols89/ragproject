@@ -46,6 +46,8 @@ class Folder(models.Model):
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]
@@ -69,8 +71,8 @@ class File(models.Model):
         Folder,
         on_delete=models.CASCADE,
         related_name="files",
-        null=True,  # Agora aceita arquivos sem pasta
-        blank=True,  # Também permite que o formulário aceite sem pasta
+        null=True,
+        blank=True,
     )
 
     uploader = models.ForeignKey(
@@ -80,6 +82,8 @@ class File(models.Model):
     )
 
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-uploaded_at"]
