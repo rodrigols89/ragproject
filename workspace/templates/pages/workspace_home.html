@@ -161,20 +161,22 @@
 
                     <!-- Pastas -->
                     {% for folder in folders %}
-                        <li class="bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer">
-                            <a href="?folder={{ folder.id }}" class="block">
+                        <li class="bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer selectable-item"
+                            data-url="?folder={{ folder.id }}" data-target="_self">
+                            <div class="block">
                                 <span class="text-gray-800 font-semibold flex items-center space-x-2">
                                     <span>📁</span>
                                     <span>{{ folder.name }}</span>
                                 </span>
-                            </a>
+                            </div>
                         </li>
                     {% endfor %}
 
                     <!-- Arquivos -->
                     {% for file in files %}
-                        <li class="bg-white border rounded-lg p-4 hover:shadow-md transition">
-                            <a href="{{ file.file.url }}" target="_blank" class="block">
+                        <li class="bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer selectable-item"
+                            data-url="{{ file.file.url }}" data-target="_blank">
+                            <div class="block">
                                 <span class="text-gray-800 font-semibold flex items-center space-x-2">
                                     <span>📄</span>
                                     <span>{{ file.name }}</span>
@@ -183,7 +185,7 @@
                                     Enviado em {{ file.uploaded_at|date:"d/m/Y H:i" }}
                                     ({{ file.file.size|filesizeformat }})
                                 </p>
-                            </a>
+                            </div>
                         </li>
                     {% endfor %}
 
@@ -220,6 +222,31 @@
 
             modal.addEventListener("cancel", function () {
                 clearModalFields();
+            });
+
+            // ---------------------------
+            // Seleção com 1 clique; abrir com 2 cliques
+            // ---------------------------
+            const selectableItems = document.querySelectorAll(".selectable-item");
+
+            selectableItems.forEach(item => {
+                item.addEventListener("click", (event) => {
+                    event.preventDefault();
+                    selectableItems.forEach(el => el.classList.remove("ring-2", "ring-blue-500"));
+                    item.classList.add("ring-2", "ring-blue-500");
+                });
+
+                item.addEventListener("dblclick", () => {
+                    const url = item.dataset.url;
+                    const target = item.dataset.target || "_self";
+                    if (!url) return;
+
+                    if (target === "_blank") {
+                        window.open(url, "_blank");
+                    } else {
+                        window.location.href = url;
+                    }
+                });
             });
         });
     </script>
