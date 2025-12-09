@@ -78,7 +78,7 @@
             {% endif %}
 
             <!-- 📌 Botões -->
-            <div class="mb-6 flex items-center gap-3 flex-wrap">
+            <div class="mb-6 flex items-center gap-3 flex-wrap" data-preserve-selection="true">
                 <button command="show-modal" commandfor="create_folder_modal"
                         class="inline-block bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
                     ➕ Nova Pasta
@@ -111,7 +111,7 @@
                     {% csrf_token %}
                 </form>
 
-                <dialog id="rename_modal" aria-labelledby="rename-title"
+                <dialog id="rename_modal" aria-labelledby="rename-title" data-preserve-selection="true"
                         class="fixed inset-0 size-auto max-h-none max-w-none overflow-y-auto bg-transparent backdrop:bg-transparent">
                     <div tabindex="0" class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
                         <div class="relative transform rounded-lg bg-white shadow-xl transition-all sm:w-full sm:max-w-md p-6">
@@ -379,6 +379,15 @@
                     clearSelection();
                 }
             });
+
+            // Clique fora de itens limpa seleção
+            document.addEventListener("click", (event) => {
+                const clickedItem = event.target.closest(".selectable-item");
+                const preserve = event.target.closest("[data-preserve-selection='true']");
+                if (!clickedItem && !preserve) {
+                    clearSelection();
+                }
+            }, true);
         });
     </script>
 {% endblock scripts %}
