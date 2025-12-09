@@ -2,6 +2,7 @@ import os
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -314,3 +315,70 @@ def rename_file(request, file_id):
     file.save()
     messages.success(request, f"Arquivo renomeado para '{new_name}'.")
     return redirect(next_url)
+
+
+def _is_descendant(folder, potential_parent):
+    """
+    Helper para evitar mover uma pasta para ela mesma ou seus filhos.
+    """
+    current = potential_parent
+    while current:
+        if current == folder:
+            return True
+        current = current.parent
+    return False
+
+
+@login_required(login_url="/")
+def move_item(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Método inválido."}, status=405)
+
+    item_type = request.POST.get("item_type")
+    item_id = request.POST.get("item_id")
+    target_folder_id = request.POST.get("target_folder") or None
+
+    if not item_type or not item_id:
+        return JsonResponse(
+            {"error": "Dados insuficientes para mover o item."}, status=400
+        )
+
+    target_folder = None
+    if target_folder_id:
+        target_folder = get_object_or_404(
+            Folder,
+            id=target_folder_id,
+            owner=request.user,
+            is_deleted=False,
+        )
+
+    if item_type == "folder":
+        folder = get_object_or_404(
+            Folder,
+            id=item_id,
+            owner=request.user,
+            is_deleted=False,
+        )
+
+        if target_folder and _is_descendant(folder, target_folder):
+            return JsonResponse(
+                {"error": "Não é possível mover a pasta para dentro dela mesma."},
+                status=400,
+            )
+
+        folder.parent = target_folder
+        folder.save()
+        return JsonResponse({"success": True})
+
+    elif item_type == "file":
+        file = get_object_or_404(
+            File,
+            id=item_id,
+            uploader=request.user,
+            is_deleted=False,
+        )
+        file.folder = target_folder
+        file.save()
+        return JsonResponse({"success": True})
+
+    return JsonResponse({"error": "Tipo de item inválido."}, status=400)

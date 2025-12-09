@@ -26,7 +26,7 @@
         </aside>
 
         <!-- 💼 Área principal do Workspace -->
-        <main class="flex-1 p-8 overflow-y-auto">
+        <main class="flex-1 p-8 overflow-y-auto" data-preserve-selection="true">
 
             <!-- Header -->
             <header class="bg-white shadow px-6 py-4">
@@ -42,25 +42,28 @@
 
                     {% if breadcrumbs|length > 1 %}
                         {% with prev_folder=breadcrumbs|slice:"-2:-1"|first %}
-                            <a href="?folder={{ prev_folder.id }}" class="text-blue-600 hover:underline">← Voltar</a>
+                            <a href="?folder={{ prev_folder.id }}" class="text-blue-600 hover:underline breadcrumb-drop"
+                               data-folder-id="{{ prev_folder.id }}">← Voltar</a>
                         {% endwith %}
                     {% else %}
-                        <a href="{% url 'workspace_home' %}" class="text-blue-600 hover:underline">← Voltar à raiz</a>
+                        <a href="{% url 'workspace_home' %}" class="text-blue-600 hover:underline breadcrumb-drop"
+                           data-folder-id="">← Voltar à raiz</a>
                     {% endif %}
 
                     <span>/</span>
 
                     {% for folder in breadcrumbs %}
                         {% if not forloop.last %}
-                            <a href="?folder={{ folder.id }}" class="hover:underline">{{ folder.name }}</a>
+                            <a href="?folder={{ folder.id }}" class="hover:underline breadcrumb-drop"
+                               data-folder-id="{{ folder.id }}">{{ folder.name }}</a>
                             <span>/</span>
                         {% else %}
-                            <span class="font-semibold">{{ folder.name }}</span>
+                            <span class="font-semibold breadcrumb-drop" data-folder-id="{{ folder.id }}">{{ folder.name }}</span>
                         {% endif %}
                     {% endfor %}
 
                 {% else %}
-                    <span class="text-gray-400 italic">📁 Raiz</span>
+                    <span class="text-gray-400 italic breadcrumb-drop" data-folder-id="">📁 Raiz</span>
                 {% endif %}
             </nav>
 
@@ -198,7 +201,12 @@
                 {% if show_modal %}
                     <script>
                         document.addEventListener("DOMContentLoaded", function () {
-                            document.querySelector("#create_folder_modal").showModal();
+                            const dlg = document.querySelector("#create_folder_modal");
+                            dlg.showModal();
+                            const input = dlg.querySelector("#nome_pasta");
+                            if (input) {
+                                setTimeout(() => { input.focus(); input.select(); }, 0);
+                            }
                         });
                     </script>
                 {% endif %}
@@ -212,7 +220,7 @@
                     {% for folder in folders %}
                         <li class="bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer selectable-item"
                             data-url="?folder={{ folder.id }}" data-target="_self"
-                            data-kind="folder" data-id="{{ folder.id }}">
+                            data-kind="folder" data-id="{{ folder.id }}" draggable="true">
                             <div class="block">
                                 <span class="text-gray-800 font-semibold flex items-center space-x-2">
                                     <span>📁</span>
@@ -226,7 +234,7 @@
                     {% for file in files %}
                         <li class="bg-white border rounded-lg p-4 hover:shadow-md transition cursor-pointer selectable-item"
                             data-url="{{ file.file.url }}" data-target="_blank"
-                            data-kind="file" data-id="{{ file.id }}">
+                            data-kind="file" data-id="{{ file.id }}" draggable="true">
                             <div class="block">
                                 <span class="text-gray-800 font-semibold flex items-center space-x-2">
                                     <span>📄</span>
@@ -257,6 +265,7 @@
             const modal = document.querySelector("#create_folder_modal");
             const input = modal.querySelector("#nome_pasta");
             const serverError = document.getElementById("server-error");
+            const openCreateBtn = document.querySelector('button[command="show-modal"][commandfor="create_folder_modal"]');
             const cancelButtons = modal.querySelectorAll("button[command='close']");
             const deleteButton = document.getElementById("delete_selected");
             const deleteForm = document.getElementById("delete_form");
@@ -265,11 +274,22 @@
             const renameForm = document.getElementById("rename_form");
             const renameInput = document.getElementById("rename_input");
             const renameCancel = document.getElementById("rename_cancel");
+            const breadcrumbDrops = document.querySelectorAll(".breadcrumb-drop");
+            const moveEndpoint = "{% url 'move_item' %}";
+            const csrfToken = deleteForm.querySelector("input[name='csrfmiddlewaretoken']").value;
 
             function clearModalFields() {
                 input.value = "";
                 serverError.textContent = "";
                 serverError.classList.add("hidden");
+            }
+
+            function focusCreateInput() {
+                // timeout garante foco após showModal
+                setTimeout(() => {
+                    input.focus();
+                    input.select();
+                }, 0);
             }
 
             cancelButtons.forEach(btn => {
@@ -282,12 +302,21 @@
                 clearModalFields();
             });
 
+            if (openCreateBtn) {
+                openCreateBtn.addEventListener("click", (event) => {
+                    event.preventDefault();
+                    modal.showModal();
+                    focusCreateInput();
+                });
+            }
+
             // ---------------------------
             // Seleção com 1 clique; abrir com 2 cliques
             // ---------------------------
             const selectableItems = document.querySelectorAll(".selectable-item");
 
             let selectedItem = null;
+            let draggedItem = null;
 
             function clearSelection() {
                 selectableItems.forEach(el => el.classList.remove("ring-2", "ring-blue-500"));
@@ -296,14 +325,45 @@
                 renameButton.disabled = true;
             }
 
+            function selectItem(item) {
+                selectableItems.forEach(el => el.classList.remove("ring-2", "ring-blue-500"));
+                item.classList.add("ring-2", "ring-blue-500");
+                selectedItem = item;
+                deleteButton.disabled = false;
+                renameButton.disabled = false;
+            }
+
+            function moveSelectedToFolder(targetFolderId) {
+                if (!selectedItem) return;
+                const payload = new URLSearchParams({
+                    item_type: selectedItem.dataset.kind,
+                    item_id: selectedItem.dataset.id,
+                    target_folder: targetFolderId || "",
+                });
+
+                fetch(moveEndpoint, {
+                    method: "POST",
+                    headers: {
+                        "X-CSRFToken": csrfToken,
+                    },
+                    body: payload,
+                })
+                    .then(async response => {
+                        const data = await response.json().catch(() => ({}));
+                        if (!response.ok) {
+                            const message = data.error || "Não foi possível mover o item.";
+                            alert(message);
+                            return;
+                        }
+                        window.location.reload();
+                    })
+                    .catch(() => alert("Erro inesperado ao mover item."));
+            }
+
             selectableItems.forEach(item => {
                 item.addEventListener("click", (event) => {
                     event.preventDefault();
-                    selectableItems.forEach(el => el.classList.remove("ring-2", "ring-blue-500"));
-                    item.classList.add("ring-2", "ring-blue-500");
-                    selectedItem = item;
-                    deleteButton.disabled = false;
-                    renameButton.disabled = false;
+                    selectItem(item);
                 });
 
                 item.addEventListener("dblclick", () => {
@@ -317,6 +377,39 @@
                         window.location.href = url;
                     }
                 });
+
+                item.addEventListener("dragstart", (event) => {
+                    draggedItem = item;
+                    event.dataTransfer.effectAllowed = "move";
+                    if (selectedItem !== item) {
+                        selectItem(item);
+                    }
+                });
+
+                item.addEventListener("dragend", () => {
+                    draggedItem = null;
+                    document.querySelectorAll(".drop-highlight").forEach(el => el.classList.remove("ring-2", "ring-green-500"));
+                });
+
+                if (item.dataset.kind === "folder") {
+                    item.addEventListener("dragover", (event) => {
+                        if (draggedItem && draggedItem !== item) {
+                            event.preventDefault();
+                            item.classList.add("ring-2", "ring-green-500", "drop-highlight");
+                        }
+                    });
+
+                    item.addEventListener("dragleave", () => {
+                        item.classList.remove("ring-2", "ring-green-500", "drop-highlight");
+                    });
+
+                    item.addEventListener("drop", (event) => {
+                        event.preventDefault();
+                        item.classList.remove("ring-2", "ring-green-500", "drop-highlight");
+                        if (!draggedItem || draggedItem === item) return;
+                        moveSelectedToFolder(item.dataset.id);
+                    });
+                }
             });
 
             deleteButton.addEventListener("click", (event) => {
@@ -388,6 +481,25 @@
                     clearSelection();
                 }
             }, true);
+
+            breadcrumbDrops.forEach(crumb => {
+                crumb.addEventListener("dragover", (event) => {
+                    if (!draggedItem) return;
+                    event.preventDefault();
+                    crumb.classList.add("ring-2", "ring-green-500", "drop-highlight");
+                });
+
+                crumb.addEventListener("dragleave", () => {
+                    crumb.classList.remove("ring-2", "ring-green-500", "drop-highlight");
+                });
+
+                crumb.addEventListener("drop", (event) => {
+                    event.preventDefault();
+                    crumb.classList.remove("ring-2", "ring-green-500", "drop-highlight");
+                    if (!draggedItem) return;
+                    moveSelectedToFolder(crumb.dataset.folderId || null);
+                });
+            });
         });
     </script>
 {% endblock scripts %}
