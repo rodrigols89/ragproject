@@ -101,9 +101,48 @@
                     🗑 Remover
                 </button>
 
+                <button id="rename_selected"
+                        class="inline-block bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled>
+                    ✏ Renomear
+                </button>
+
                 <form id="delete_form" method="post" class="hidden">
                     {% csrf_token %}
                 </form>
+
+                <dialog id="rename_modal" aria-labelledby="rename-title"
+                        class="fixed inset-0 size-auto max-h-none max-w-none overflow-y-auto bg-transparent backdrop:bg-transparent">
+                    <div tabindex="0" class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                        <div class="relative transform rounded-lg bg-white shadow-xl transition-all sm:w-full sm:max-w-md p-6">
+                            <form id="rename_form" method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <h3 id="rename-title" class="text-lg font-semibold text-gray-900 mb-4">
+                                    Renomear item
+                                </h3>
+                                <div>
+                                    <label for="rename_input" class="block text-sm font-medium text-gray-700">
+                                        Novo nome
+                                    </label>
+                                    <input type="text" id="rename_input" name="name" required
+                                           class="mt-1 block w-full px-4 py-2 border rounded-lg"
+                                           autocomplete="off">
+                                </div>
+                                <div class="mt-6 flex justify-end space-x-2">
+                                    <button type="submit"
+                                            class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded">
+                                        Salvar
+                                    </button>
+                                    <button type="button" id="rename_cancel"
+                                            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </dialog>
             </div>
 
             <!-- MODAL Criar Pasta -->
@@ -221,6 +260,11 @@
             const cancelButtons = modal.querySelectorAll("button[command='close']");
             const deleteButton = document.getElementById("delete_selected");
             const deleteForm = document.getElementById("delete_form");
+            const renameButton = document.getElementById("rename_selected");
+            const renameModal = document.getElementById("rename_modal");
+            const renameForm = document.getElementById("rename_form");
+            const renameInput = document.getElementById("rename_input");
+            const renameCancel = document.getElementById("rename_cancel");
 
             function clearModalFields() {
                 input.value = "";
@@ -252,6 +296,7 @@
                     item.classList.add("ring-2", "ring-blue-500");
                     selectedItem = item;
                     deleteButton.disabled = false;
+                    renameButton.disabled = false;
                 });
 
                 item.addEventListener("dblclick", () => {
@@ -285,6 +330,39 @@
                 if (action) {
                     deleteForm.action = action;
                     deleteForm.submit();
+                }
+            });
+
+            renameButton.addEventListener("click", (event) => {
+                event.preventDefault();
+                if (!selectedItem) return;
+                const currentName = selectedItem.querySelector("span:nth-child(2)")?.textContent?.trim() || "";
+                renameInput.value = currentName;
+                renameModal.showModal();
+                renameInput.focus();
+            });
+
+            renameCancel.addEventListener("click", () => {
+                renameModal.close();
+            });
+
+            renameForm.addEventListener("submit", (event) => {
+                if (!selectedItem) {
+                    event.preventDefault();
+                    return;
+                }
+                const kind = selectedItem.dataset.kind;
+                const id = selectedItem.dataset.id;
+                if (!kind || !id) {
+                    event.preventDefault();
+                    return;
+                }
+                if (kind === "folder") {
+                    renameForm.action = `/rename-folder/${id}/`;
+                } else if (kind === "file") {
+                    renameForm.action = `/rename-file/${id}/`;
+                } else {
+                    event.preventDefault();
                 }
             });
         });

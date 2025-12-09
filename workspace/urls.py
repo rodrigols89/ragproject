@@ -8,4 +8,6 @@ urlpatterns = [
     path(route="upload-file/", view=views.upload_file, name="upload_file"),
     path(route="delete-folder/<int:folder_id>/", view=views.delete_folder, name="delete_folder"),
     path(route="delete-file/<int:file_id>/", view=views.delete_file, name="delete_file"),
+    path(route="rename-folder/<int:folder_id>/", view=views.rename_folder, name="rename_folder"),
+    path(route="rename-file/<int:file_id>/", view=views.rename_file, name="rename_file"),
 ]

@@ -248,3 +248,69 @@ def delete_file(request, file_id):
         return redirect(f"/workspace?folder={folder.id}")
 
     return redirect("workspace_home")
+
+
+@login_required(login_url="/")
+def rename_folder(request, folder_id):
+    folder = get_object_or_404(
+        Folder, id=folder_id, owner=request.user, is_deleted=False
+    )
+
+    if request.method != "POST":
+        return redirect("workspace_home")
+
+    new_name = request.POST.get("name", "").strip()
+    next_url = request.POST.get("next", "workspace_home")
+
+    if not new_name:
+        messages.error(request, "O nome da pasta não pode ser vazio.")
+        return redirect(next_url)
+
+    # impedir duplicatas no mesmo parent (case-insensitive), exceto a própria
+    if Folder.objects.filter(
+        owner=request.user,
+        parent=folder.parent,
+        name__iexact=new_name,
+    ).exclude(id=folder.id).exists():
+        messages.error(
+            request, "Já existe uma pasta com esse nome nesse diretório."
+        )
+        return redirect(next_url)
+
+    folder.name = new_name
+    folder.save()
+    messages.success(request, f"Pasta renomeada para '{new_name}'.")
+    return redirect(next_url)
+
+
+@login_required(login_url="/")
+def rename_file(request, file_id):
+    file = get_object_or_404(
+        File, id=file_id, uploader=request.user, is_deleted=False
+    )
+
+    if request.method != "POST":
+        return redirect("workspace_home")
+
+    new_name = request.POST.get("name", "").strip()
+    next_url = request.POST.get("next", "workspace_home")
+
+    if not new_name:
+        messages.error(request, "O nome do arquivo não pode ser vazio.")
+        return redirect(next_url)
+
+    # impedir duplicatas no mesmo diretório (case-insensitive), exceto o próprio
+    if File.objects.filter(
+        uploader=request.user,
+        folder=file.folder,
+        name__iexact=new_name,
+    ).exclude(id=file.id).exists():
+        messages.error(
+            request, "Já existe um arquivo com esse nome neste diretório."
+        )
+        return redirect(next_url)
+
+    file.name = new_name
+    file.save()
+    messages.success(request, f"Arquivo renomeado para '{new_name}'.")
+    return redirect(next_url)
