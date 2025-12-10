@@ -81,7 +81,10 @@ def create_folder(request):
 
             # Verificar duplicação (ignorando caixa alta/baixa)
             if Folder.objects.filter(
-                owner=request.user, name__iexact=name, parent=parent_folder
+                owner=request.user,
+                name__iexact=name,
+                parent=parent_folder,
+                is_deleted=False
             ).exists():
                 form.add_error(
                     "name",
@@ -181,7 +184,10 @@ def upload_file(request):
         counter = 1
 
         while File.objects.filter(
-            uploader=request.user, folder=folder, name__iexact=new_name
+            uploader=request.user,
+            folder=folder,
+            name__iexact=new_name,
+            is_deleted=False
         ).exists():
             new_name = f"{base} ({counter}){ext}"
             counter += 1
@@ -272,6 +278,7 @@ def rename_folder(request, folder_id):
         owner=request.user,
         parent=folder.parent,
         name__iexact=new_name,
+        is_deleted=False,
     ).exclude(id=folder.id).exists():
         messages.error(
             request, "Já existe uma pasta com esse nome nesse diretório."
@@ -306,6 +313,7 @@ def rename_file(request, file_id):
         uploader=request.user,
         folder=file.folder,
         name__iexact=new_name,
+        is_deleted=False,
     ).exclude(id=file.id).exists():
         messages.error(
             request, "Já existe um arquivo com esse nome neste diretório."
