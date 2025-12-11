@@ -5,24 +5,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-ntyi#32b20l03ioo=3tr=1j8snafe(7*l=#)u&6+rdyrk)6v7f'
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = []
 
 
 # Application definition
-
 INSTALLED_APPS = [
     # Apps padrão do Django
     "django.contrib.admin",
@@ -49,6 +42,7 @@ INSTALLED_APPS = [
     "workspace",
 ]
 
+# Middleware
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -65,6 +59,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'core.urls'
 
+# Templates
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -93,8 +88,6 @@ AUTHENTICATION_BACKENDS = [
 WSGI_APPLICATION = 'core.wsgi.application'
 
 # Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -105,9 +98,6 @@ DATABASES = {
         "PORT": os.getenv("POSTGRES_PORT", 5432),
     }
 }
-
-# Password validation
-# https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -124,40 +114,31 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
-# Internationalization
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
+# Configurações de "Internacionalização"
 LANGUAGE_CODE = "pt-br"
 TIME_ZONE = "America/Sao_Paulo"
 USE_I18N = True
 USE_TZ = True
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Configurações de Arquivos Estáticos (STATIC)
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
+# Configurações de Arquivos de Mídia (MEDIA)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-
+# Configurações de autenticação do Django + Allauth
 SITE_ID = 2
-
 LOGIN_REDIRECT_URL = "/home/"  # ou o nome da rota que preferir
 LOGOUT_REDIRECT_URL = "/"      # para onde o usuário vai depois do logout
-
 # Permitir login apenas com username (pode ser {'username', 'email'} se quiser os dois)
 ACCOUNT_LOGIN_METHODS = {"username"}
-
 # Campos obrigatórios no cadastro (asterisco * indica que o campo é requerido)
 ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
 ACCOUNT_EMAIL_VERIFICATION = "optional"     # "mandatory" em produção
-
-
 ACCOUNT_ADAPTER = "users.adapter.NoMessageAccountAdapter"
 SOCIALACCOUNT_ADAPTER = "users.adapter.NoMessageSocialAccountAdapter"
