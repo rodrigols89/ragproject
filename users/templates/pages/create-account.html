@@ -3,20 +3,26 @@
 {% block title %}Criar Conta{% endblock %}
 
 {% block content %}
+
     <main class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-md w-full space-y-8">
+
             <!-- Card -->
-            <div class="bg-white py-8 px-6 shadow rounded-lg">
+            <div class="max-w-md w-full space-y-8 bg-white py-8 px-6 shadow rounded-lg">
+
                 <!-- Logo / Title -->
                 <div class="mb-6 text-center">
                     <h2 class="mt-4 text-2xl font-semibold text-gray-900">Criar Conta</h2>
-                    <p class="mt-1 text-sm text-gray-500">Preencha os campos abaixo para se cadastrar</p>
+                    <p class="mt-1 text-sm text-gray-500">
+                        Preencha os campos abaixo para se cadastrar
+                    </p>
                 </div>
 
                 {% if messages %}
                     <div class="mb-4">
                         {% for message in messages %}
-                            <div class="text-red-600 bg-red-100 border border-red-200 rounded-md px-4 py-2 text-sm">
+                            <div class="text-red-600 bg-red-100 border
+                                        border-red-200 rounded-md px-4
+                                        py-2 text-sm">
                                 {{ message }}
                             </div>
                         {% endfor %}
@@ -31,15 +37,21 @@
 
                     <!-- Username -->
                     <div>
-                        <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                        <label for="{{ form.username.id_for_label }}"
+                               class="block text-sm font-medium text-gray-700">
                             Usuário
                         </label>
                         <div class="mt-1">
-                            <input type="text" name="{{ form.username.name }}" id="{{ form.username.id_for_label }}"
+                            <input
+                                type="text" name="{{ form.username.name }}"
+                                id="{{ form.username.id_for_label }}"
                                 value="{{ form.username.value|default_if_none:'' }}"
-                                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
-                                       placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 
-                                       focus:border-blue-500 sm:text-sm" required>
+                                class="appearance-none block w-full
+                                       px-3 py-2 border border-gray-300
+                                       rounded-md shadow-sm placeholder-gray-400
+                                       focus:outline-none focus:ring-2 focus:ring-blue-500 
+                                       focus:border-blue-500 sm:text-sm"
+                            required>
                         </div>
                         {% for error in form.username.errors %}
                             <p class="text-sm text-red-600 mt-1">{{ error }}</p>
@@ -48,15 +60,21 @@
 
                     <!-- Email -->
                     <div>
-                        <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                        <label for="{{ form.email.id_for_label }}"
+                               class="block text-sm font-medium text-gray-700">
                             Email
                         </label>
                         <div class="mt-1">
-                            <input type="email" name="{{ form.email.name }}" id="{{ form.email.id_for_label }}"
+                            <input
+                                type="email" name="{{ form.email.name }}"
+                                id="{{ form.email.id_for_label }}"
                                 value="{{ form.email.value|default_if_none:'' }}"
-                                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
-                                       placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 
-                                       focus:border-blue-500 sm:text-sm" required>
+                                class="appearance-none block w-full
+                                       px-3 py-2 border border-gray-300
+                                       rounded-md shadow-sm placeholder-gray-400
+                                       focus:outline-none focus:ring-2 focus:ring-blue-500 
+                                       focus:border-blue-500 sm:text-sm"
+                            required>
                         </div>
                         {% for error in form.email.errors %}
                             <p class="text-sm text-red-600 mt-1">{{ error }}</p>
@@ -65,14 +83,21 @@
 
                     <!-- Password 1 -->
                     <div>
-                        <label for="{{ form.password1.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                        <label for="{{ form.password1.id_for_label }}"
+                               class="block text-sm font-medium text-gray-700">
                             Senha
                         </label>
                         <div class="mt-1">
-                            <input type="password" name="{{ form.password1.name }}" id="{{ form.password1.id_for_label }}"
-                                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
-                                       placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 
-                                       focus:border-blue-500 sm:text-sm" required>
+                            <input
+                                type="password"
+                                name="{{ form.password1.name }}"
+                                id="{{ form.password1.id_for_label }}"
+                                class="appearance-none block w-full px-3 py-2
+                                       border border-gray-300 rounded-md shadow-sm 
+                                       placeholder-gray-400 focus:outline-none
+                                       focus:ring-2 focus:ring-blue-500 
+                                       focus:border-blue-500 sm:text-sm"
+                            required>
                         </div>
                         {% for error in form.password1.errors %}
                             <p class="text-sm text-red-600 mt-1">{{ error }}</p>
@@ -81,14 +106,21 @@
 
                     <!-- Password 2 -->
                     <div>
-                        <label for="{{ form.password2.id_for_label }}" class="block text-sm font-medium text-gray-700">
+                        <label for="{{ form.password2.id_for_label }}"
+                               class="block text-sm font-medium text-gray-700">
                             Confirmar Senha
                         </label>
                         <div class="mt-1">
-                            <input type="password" name="{{ form.password2.name }}" id="{{ form.password2.id_for_label }}"
-                                class="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm 
-                                       placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 
-                                       focus:border-blue-500 sm:text-sm" required>
+                            <input
+                                type="password"
+                                name="{{ form.password2.name }}"
+                                id="{{ form.password2.id_for_label }}"
+                                class="appearance-none block w-full px-3 py-2
+                                       border border-gray-300 rounded-md shadow-sm 
+                                       placeholder-gray-400 focus:outline-none
+                                       focus:ring-2 focus:ring-blue-500 
+                                       focus:border-blue-500 sm:text-sm"
+                            required>
                         </div>
                         {% for error in form.password2.errors %}
                             <p class="text-sm text-red-600 mt-1">{{ error }}</p>
@@ -98,12 +130,15 @@
                     <!-- Submit -->
                     <div>
                         <button type="submit"
-                            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm 
-                                   text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 
-                                   focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            class="w-full flex justify-center py-2 px-4 border
+                                   border-transparent rounded-md shadow-sm 
+                                   text-sm font-medium text-white bg-blue-600
+                                   hover:bg-blue-700 focus:outline-none focus:ring-2
+                                   focus:ring-offset-2 focus:ring-blue-500">
                             Criar Conta
                         </button>
                     </div>
+
                 </form>
 
                 <!-- Divider -->
@@ -125,6 +160,6 @@
                 </p>
 
             </div>
-        </div>
+
     </main>
 {% endblock %}

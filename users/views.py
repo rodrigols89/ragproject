@@ -6,43 +6,35 @@ from django.shortcuts import redirect, render
 from users.forms import CustomUserCreationForm
 
 
-def create_account(request):
-    # Caso 1: Requisição GET → apenas exibe o formulário vazio
-    if request.method == "GET":
-        form = CustomUserCreationForm()
-        return render(request, "pages/create-account.html", {"form": form})
-
-    # Caso 2: Requisição POST → processa o envio do formulário
-    elif request.method == "POST":
-        form = CustomUserCreationForm(request.POST)
-
-        # Se o formulário for válido, salva e redireciona
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Conta criada com sucesso! Faça login.")
-            return redirect("/")
-
-        # Se houver erros, mostra a mesma página com mensagens
-        messages.error(request, "Corrija os erros abaixo.")
-        return render(request, "pages/create-account.html", {"form": form})
-
-
-# Redireciona para o login se não estiver autenticado
 @login_required(login_url="/")
 def home_view(request):
     return render(request, "pages/home.html")
 
 
+def create_account(request):
+    if request.method == "GET":
+        form = CustomUserCreationForm()
+        return render(request, "pages/create-account.html", {"form": form})
+
+    elif request.method == "POST":
+        form = CustomUserCreationForm(request.POST)
+
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Conta criada com sucesso! Faça login.")
+            return redirect("/")
+
+        messages.error(request, "Corrija os erros abaixo.")
+        return render(request, "pages/create-account.html", {"form": form})
+
+
 def login_view(request):
-    # Se o usuário já estiver logado, envia direto pra home
     if request.user.is_authenticated:
         return redirect("home")
 
-    # GET → renderiza pages/index.html (form de login)
     if request.method == "GET":
         return render(request, "pages/index.html")
 
-    # POST → processa credenciais
     username = request.POST.get("username")
     password = request.POST.get("password")
     user = authenticate(request, username=username, password=password)

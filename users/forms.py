@@ -7,12 +7,14 @@ class CustomUserCreationForm(UserCreationForm):
     class Meta:
         model = User
         fields = ["username", "email", "password1", "password2"]
+
         labels = {
             "username": "Usuário",
             "email": "Email",
             "password1": "Senha",
             "password2": "Confirmar Senha",
         }
+
         error_messages = {
             "username": {
                 "unique": "Já existe um usuário com este nome.",

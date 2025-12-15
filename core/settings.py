@@ -135,8 +135,11 @@ MEDIA_ROOT = BASE_DIR / 'media'
 SITE_ID = 2
 LOGIN_REDIRECT_URL = "/home/"  # ou o nome da rota que preferir
 LOGOUT_REDIRECT_URL = "/"      # para onde o usuário vai depois do logout
+SOCIALACCOUNT_LOGIN_ON_GET = True  # Login imediato ao clicar no link do provedor
+
 # Permitir login apenas com username (pode ser {'username', 'email'} se quiser os dois)
 ACCOUNT_LOGIN_METHODS = {"username"}
+
 # Campos obrigatórios no cadastro (asterisco * indica que o campo é requerido)
 ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
 ACCOUNT_EMAIL_VERIFICATION = "optional"     # "mandatory" em produção
