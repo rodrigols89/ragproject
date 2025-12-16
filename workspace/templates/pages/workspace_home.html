@@ -42,11 +42,13 @@
 
                     {% if breadcrumbs|length > 1 %}
                         {% with prev_folder=breadcrumbs|slice:"-2:-1"|first %}
-                            <a href="?folder={{ prev_folder.id }}" class="text-blue-600 hover:underline breadcrumb-drop"
+                            <a href="?folder={{ prev_folder.id }}"
+                               class="text-blue-600 hover:underline breadcrumb-drop"
                                data-folder-id="{{ prev_folder.id }}">← Voltar</a>
                         {% endwith %}
                     {% else %}
-                        <a href="{% url 'workspace_home' %}" class="text-blue-600 hover:underline breadcrumb-drop"
+                        <a href="{% url 'workspace_home' %}"
+                           class="text-blue-600 hover:underline breadcrumb-drop"
                            data-folder-id="">← Voltar à raiz</a>
                     {% endif %}
 
@@ -54,17 +56,21 @@
 
                     {% for folder in breadcrumbs %}
                         {% if not forloop.last %}
-                            <a href="?folder={{ folder.id }}" class="hover:underline breadcrumb-drop"
+                            <a href="?folder={{ folder.id }}"
+                               class="hover:underline breadcrumb-drop"
                                data-folder-id="{{ folder.id }}">{{ folder.name }}</a>
                             <span>/</span>
                         {% else %}
-                            <span class="font-semibold breadcrumb-drop" data-folder-id="{{ folder.id }}">{{ folder.name }}</span>
+                            <span class="font-semibold breadcrumb-drop"
+                                  data-folder-id="{{ folder.id }}">{{ folder.name }}
+                            </span>
                         {% endif %}
                     {% endfor %}
 
                 {% else %}
                     <span class="text-gray-400 italic breadcrumb-drop" data-folder-id="">📁 Raiz</span>
                 {% endif %}
+
             </nav>
 
             <!-- Mensagens -->
@@ -72,8 +78,8 @@
                 <ul class="mb-4">
                     {% for message in messages %}
                         <li class="px-4 py-2 rounded 
-                                {% if message.tags == 'success' %}bg-green-100 text-green-700
-                                {% else %}bg-red-100 text-red-700{% endif %}">
+                            {% if message.tags == 'success' %}bg-green-100 text-green-700
+                            {% else %}bg-red-100 text-red-700{% endif %}">
                             {{ message }}
                         </li>
                     {% endfor %}
@@ -82,24 +88,34 @@
 
             <!-- 📌 Botões -->
             <div class="mb-6 flex items-center gap-3 flex-wrap" data-preserve-selection="true">
+
                 <button command="show-modal" commandfor="create_folder_modal"
                         class="inline-block bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded">
                     ➕ Nova Pasta
                 </button>
 
-                <form method="post" action="{% url 'upload_file' %}" enctype="multipart/form-data" class="inline-block">
+                <form method="post"
+                      action="{% url 'upload_file' %}"
+                      enctype="multipart/form-data"
+                      class="inline-block">
+
                     {% csrf_token %}
+
                     <input type="hidden" name="next" value="{{ request.get_full_path }}">
                     <input type="hidden" name="folder" value="{{ current_folder.id|default_if_none:'' }}">
 
-                    <label class="inline-block bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded cursor-pointer">
+                    <label class="inline-block bg-blue-600 hover:bg-blue-700
+                                  text-white px-4 py-2 rounded cursor-pointer">
                         📤 Fazer Upload
                         <input type="file" name="file" multiple class="hidden" onchange="this.form.submit()">
                     </label>
+
                 </form>
 
                 <button id="delete_selected"
-                        class="inline-block bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                        class="inline-block bg-red-600 hover:bg-red-700
+                               text-white px-4 py-2 rounded disabled:opacity-50
+                               disabled:cursor-not-allowed"
                         disabled>
                     🗑 Remover
                 </button>

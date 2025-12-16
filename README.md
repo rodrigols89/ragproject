@@ -17,7 +17,7 @@
      - [`base.html`](#base-html)
    - [`users/`](#users-folder)
      - [`templates/`](#users-templates-folder)
-       - [`pages/`](#users-pages-folder)
+       - `pages/`
          - [`create-account.html`](#users-create-account-html)
          - [`home.html`](#users-home-html)
      - [`adapters.py`](#users-adapters-py)
@@ -28,6 +28,36 @@
        - [`create_account()`](#users-view-create_account)
        - [`login_view()`](#users-view-login_view)
        - [`logout_view()`](#users-view-logout_view)
+   - [`workspace/`](#workspace-folder)
+     - `templates/`
+       - `pages/`
+         - [`workspace_home.html`](#workspace-workspace-home-html)
+     - [`admin.py`](#workspace-admin-py)
+     - [`forms.py`](#workspace-forms-py)
+       - [`validate_file_size() function`](#workspace-forms-validate-file-size)
+       - [`FolderForm() class`](#workspace-forms-folderform-class)
+       - [`FileForm() class`](#workspace-forms-fileform-class)
+       - [`FileUploadForm() class`](#workspace-forms-fileuploadform-class)
+     - [`models.py`](#workspace-models-py)
+       - [`workspace_upload_to() function`](#workspace-models-workspace-upload-to)
+       - [`Folder() class`](#workspace-models-folder-class)
+       - [`File() class`](#workspace-models-file-class)
+     - [`url.py`](#workspace-url-py)
+     - [`validators.py`](#workspace-validators-py)
+       - [`validate_file_type()`](#workspace-validate-file-type)
+       - [`validate_file_size()`](#workspace-validate-file-size)
+       - [`validate_file()`](#workspace-validate-file)
+     - `views.py`
+       - [`workspace_home()`](#workspace-view-workspace-home)
+       - [`create_folder()`](#workspace-view-create-folder)
+       - [`upload_file()`](#workspace-view-upload-file)
+       - [`build_breadcrumbs()`](#workspace-view-build-breadcrumbs)
+       - [`delete_folder()`](#workspace-view-delete-folder)
+       - [`delete_file()`](#workspace-view-delete-file)
+       - [`rename_folder()`](#workspace-view-rename-folder)
+       - [`rename_file()`](#workspace-view-rename-file)
+       - [`_is_descendant`](#workspace-view-is-descendant)
+       - [`move_item()`](#workspace-view-move-item)
  - **Configurações:**
    - [`[Google Auth] Configuração do Google OAuth (login social)`](#settings-google-auth)
    - [`[GitHub Auth] Configuração do GitHub OAuth (login social)`](#settings-github-auth)
@@ -1872,23 +1902,6 @@ O app **"users"** é usado sempre que você precisa:
 
 ---
 
-<div id="users-pages-folder"></div>
-
-## `pages/`
-
-> O diretório `users/templates/pages/` é onde ficam os templates das **páginas genéricas** do app users.
-
-
-
-
-
-
-
-
-
-
----
-
 <div id="users-create-account-html"></div>
 
 ## `create-account.html`
@@ -2688,6 +2701,1022 @@ def logout_view(request):
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!--- ( workspace/ ) --->
+
+---
+
+<div id="workspace-folder"></div>
+
+## `workspace/`
+
+> O app `workspace/` é responsável por gerenciar as **pastas** e **arquivos** do usuário.
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="workspace-workspace-home-html"></div>
+
+## `workspace_home.html`
+
+> O template (HTML) [`workspace_home.html`](workspace/templates/pages/workspace_home.html) é responsável pelo **gerenciamento de pastas e arquivos** do usuário.
+
+[`workspace_home.html`](workspace/templates/pages/workspace_home.html)
+```html
+Em breve...
+```
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="workspace-admin-py"></div>
+
+## `admin.py`
+
+Este arquivo configura o **Django Admin**, registrando os modelos da aplicação para que possam ser gerenciados pela interface administrativa do Django.
+
+[admin.py](workspace/admin.py)
+```python
+from django.contrib import admin
+
+from .models import File, Folder
+
+admin.site.register(Folder)
+admin.site.register(File)
+```
+
+ - `from .models import File, Folder`
+   - Importa os modelos `File` e `Folder` definidos no arquivo [models.py](workspace/models.py) do mesmo app.
+   - O *ponto (.)* indica importação relativa ao app atual.
+ - `admin.site.register(Folder)`
+   - Registra o modelo *Folder* no Django Admin.
+   - A partir disso:
+     - O modelo aparece no painel administrativo;
+     - Pode ser criado, editado e excluído pela interface web do admin.
+ - `admin.site.register(File)`
+   - Registra o modelo *File* no Django Admin.
+   - Permite o gerenciamento de arquivos diretamente pelo painel administrativo.
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="workspace-forms-py"></div>
+
+## `forms.py`
+
+Este arquivo define **formulários Django (ModelForms)** responsáveis por:
+
+ - Validar;
+ - Criar;
+ - Personalizar...
+
+a *criação de pastas* e o *upload de arquivos*, incluindo regras de validação como tamanho máximo de arquivo e tratamento automático de nomes.
+
+---
+
+<div id="workspace-forms-validate-file-size"></div>
+
+## `validate_file_size() function`
+
+> Esse *validador* garante que o arquivo enviado não ultrapasse um tamanho máximo (50 MB) permitido.
+
+[forms.py](workspace/forms.py)
+```python
+def validate_file_size(value):
+    max_mb = 100  # 100 MB
+    if value.size > max_mb * 1024 * 1024:
+        raise ValidationError(f"O arquivo não pode ser maior que {max_mb} MB.")
+```
+
+ - `max_mb = 100`
+   - Define o tamanho máximo permitido em megabytes.
+   - Neste caso, o limite é 100 MB.
+ - `if value.size > max_mb * 1024 * 1024`
+   - Verifica o tamanho real do arquivo em bytes.
+   - O cálculo `1024 * 1024` converte megabytes para bytes.
+   - Se o tamanho do arquivo for maior que 50 MB, a condição é satisfeita.
+ - `raise ValidationError(f"O arquivo não pode ser maior que {max_mb} MB.")`
+   - Lança um erro de validação do Django.
+   - Esse erro:
+     - Impede o envio do formulário;
+     - É associado ao campo de arquivo;
+     - Pode ser exibido diretamente no template como mensagem de erro .
+
+> **📌 Na prática:**  
+> Esse validador é usado em campos *"FileField"* para bloquear uploads grandes demais antes de salvar no banco ou no disco.
+
+---
+
+<div id="workspace-forms-folderform-class"></div>
+
+## `FolderForm() class`
+
+> Essa classe (formulário) é responsável por **criar** e **validar pastas**, garantindo que o nome seja informado corretamente e aplicando personalizações visuais e mensagens de erro.
+
+[forms.py](workspace/forms.py)
+```python
+class FolderForm(forms.ModelForm):
+    class Meta:
+        model = Folder
+        fields = ["name"]
+        widgets = {
+            "name": forms.TextInput(
+                attrs={
+                    "class": "block w-full px-3 py-2 border rounded",
+                    "placeholder": "Nome da pasta",
+                }
+            ),
+        }
+        error_messages = {
+            "name": {"required": "O nome da pasta é obrigatório."},
+        }
+
+    def clean_name(self):
+        name = self.cleaned_data.get("name", "").strip()
+        # opcional: garantir unicidade no mesmo parent/owner
+        if not name:
+            raise ValidationError("Nome inválido.")
+        return name
+```
+
+ - `model = Folder`
+   - Informa que este formulário está ligado ao modelo *"Folder"*.
+   - Quando o formulário for salvo, ele criará ou atualizará um objeto *"Folder"*.
+ - `widgets = {}`
+   - Permite personalizar o HTML gerado para os campos do formulário.
+   - `"name": forms.TextInput()`
+     - Define que o campo `name` será renderizado como um `<input type="text">`.
+   - `attrs = {}`
+     - Define atributos HTML extras para o campo.
+     - `"placeholder": "Nome da pasta",`
+       - Define um texto de dica exibido dentro do input quando ele está vazio.
+ - `def clean_name(self):`
+   - `name = self.cleaned_data.get("name", "").strip()`
+     - Obtém o valor do campo name após as validações iniciais.
+     - Usa *strip()* para remover espaços extras no início e no fim.
+   - `if not name:`
+     - Verifica se o nome ficou vazio após remover os espaços.
+   - `raise ValidationError("Nome inválido.")`
+     - Lança um erro de validação se o nome for inválido.
+     - Impede o salvamento do formulário.
+   - `return name`
+     - Retorna o valor validado do campo.
+     - Esse valor será usado para criar ou atualizar o objeto Folder.
+
+---
+
+<div id="workspace-forms-fileform-class"></div>
+
+## `FileForm() class`
+
+> Essa classe (formulário) é responsável por **criar** e **validar arquivos enviados pelo usuário**, aplicando validações de upload (como tamanho máximo) e definindo automaticamente o nome do arquivo quando ele não é informado.
+
+[forms.py](workspace/forms.py)
+```python
+class FileForm(forms.ModelForm):
+    class Meta:
+        model = File
+        fields = ["name", "file"]
+        widgets = {
+            "name": forms.TextInput(
+                attrs={
+                    "class": "block w-full px-3 py-2 border rounded",
+                    "placeholder": "Nome do arquivo (opcional)",
+                }
+            ),
+            "file": forms.ClearableFileInput(attrs={"class": "block w-full"}),
+        }
+        error_messages = {
+            "file": {"required": "Selecione um arquivo para enviar."},
+        }
+
+    # adiciona validação de tamanho
+    file = forms.FileField(validators=[validate_file_size])
+
+    def clean_name(self):
+        name = self.cleaned_data.get("name")
+        uploaded = self.cleaned_data.get("file")
+        if not name and uploaded:
+            # se o usuário não informou o name,
+            # preenche com o filename (sem path)
+            return uploaded.name
+        return name
+```
+
+ - `fields = ["name", "file"]`
+   - Define quais campos do modelo File serão exibidos e processados pelo formulário.
+   - `name` → Nome do arquivo (opcional).
+   - `file` → O arquivo em si.
+ - `file = forms.FileField(validators=[validate_file_size])`
+   - Redefine explicitamente o campo file no formulário.
+   - Adiciona o validador **validate_file_size()**.
+   - Isso garante que:
+     - O arquivo respeite o tamanho máximo definido;
+     - A validação ocorra antes de salvar no banco ou no disco.
+ - `def clean_name(self):`
+   - `name = self.cleaned_data.get("name")`
+     - Obtém o valor informado no campo name após as validações iniciais.
+   - `uploaded = self.cleaned_data.get("file")`
+     - Obtém o arquivo enviado pelo usuário.
+   - `if not name and uploaded:`
+     - Verifica se:
+       - O usuário não informou um nome;
+       - Mas enviou um arquivo.
+   - `return uploaded.name`
+     - Usa automaticamente o nome original do arquivo enviado (sem o caminho).
+     - Isso garante que o campo `name` nunca fique vazio quando um arquivo existir.
+
+---
+
+<div id="workspace-forms-fileuploadform-class"></div>
+
+## `FileUploadForm() class`
+
+> Essa classe (formulário) é um formulário simplificado de upload, usado quando apenas o arquivo precisa ser enviado, sem informações adicionais.
+
+[forms.py](workspace/forms.py)
+```python
+class FileUploadForm(forms.ModelForm):
+    class Meta:
+        model = File
+        fields = ["file"]
+```
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="workspace-models-py"></div>
+
+## `models.py`
+
+Este arquivo define os modelos **centrais do workspace**, responsáveis por:
+
+ - Representar pastas e arquivos dos usuários;
+ - Incluindo hierarquia de pastas;
+ - Controle de ownership;
+ - Upload seguro de arquivos e metadados;
+   - Como data de criação e exclusão lógica.
+
+---
+
+<div id="workspace-models-workspace-upload-to"></div>
+
+## `workspace_upload_to() function`
+
+> Essa função define **onde** e **como** *os arquivos enviados serão armazenados dentro do MEDIA_ROOT*, organizando-os por usuário e pasta.
+
+[models.py](workspace/models.py)
+```python
+
+def workspace_upload_to(instance, filename):
+    """
+    Constrói o path onde o arquivo será salvo dentro de MEDIA_ROOT:
+    workspace/<user_id>/<folder_id_or_root>/<filename>
+    """
+    user_part = (
+        f"user_{instance.folder.owner.id}"
+        if instance.folder and instance.folder.owner
+        else f"user_{instance.uploader.id}"
+    )
+
+    folder_part = f"folder_{instance.folder.id}" if instance.folder else "root"
+
+    # Limpa o nome do arquivo por segurança básica
+    safe_name = os.path.basename(filename)
+
+    return os.path.join("workspace", user_part, folder_part, safe_name)
+```
+
+Agora, vamos explicar algumas partes do código acima (só o necessário, sem repetir o que já foi explicado em outras partes do README):
+
+```python
+user_part = (
+    f"user_{instance.folder.owner.id}"
+    if instance.folder and instance.folder.owner
+    else f"user_{instance.uploader.id}"
+)
+```
+
+ - **Esse bloco define qual usuário será usado para organizar o caminho do arquivo, garantindo que ele fique associado ao dono correto.**
+ - `f"user_{instance.folder.owner.id}"`
+   - Cria uma string com o ID do dono da pasta.
+   - Exemplo de resultado: *user_5*
+ - `if instance.folder and instance.folder.owner`
+   - Verifica duas condições:
+     - O arquivo está associado a uma pasta (instance.folder);
+     - Essa pasta tem um dono definido (instance.folder.owner).
+   - Isso evita erros de acesso a atributos inexistentes (None).
+ - `else f"user_{instance.uploader.id}"`
+   - Caso o arquivo não esteja em uma pasta:
+     - Usa o ID do usuário que fez o upload (uploader).
+   - Garante que todo arquivo sempre tenha um usuário associado.
+
+```python
+folder_part = f"folder_{instance.folder.id}" if instance.folder else "root"
+
+# Limpa o nome do arquivo por segurança básica
+safe_name = os.path.basename(filename)
+
+return os.path.join("workspace", user_part, folder_part, safe_name)
+```
+
+ - `folder_part = f"folder_{instance.folder.id}" if instance.folder else "root"`
+   - Define a parte do caminho referente à pasta:
+     - Se o arquivo estiver em uma pasta → `folder_<id>`;
+     - Se não estiver em nenhuma pasta → root
+ - `safe_name = os.path.basename(filename)`
+   - Remove qualquer caminho do nome do arquivo.
+   - Garante que apenas o nome do arquivo seja usado, evitando:
+     - `Path traversal (../../)`
+     - Problemas de segurança ou sobrescrita indevida.
+ - `return os.path.join("workspace", user_part, folder_part, safe_name)`
+   - Monta o caminho final do arquivo usando separadores corretos do sistema operacional.
+   - O caminho retornado será algo como:
+     - `workspace/user_3/folder_12/documento.pdf`
+   - O Django salva o arquivo automaticamente dentro de:
+     - `MEDIA_ROOT/workspace/user_3/folder_12/documento.pdf`
+
+---
+
+<div id="workspace-models-folder-class">
+
+## `Folder() class`
+
+> Essa classe define o modelo *Folder*, responsável por **representar pastas de usuários**, com **suporte a hierarquia (pastas dentro de pastas)**, controle de dono e metadados de criação e exclusão lógica.
+
+[models.py](workspace/models.py)
+```python
+class Folder(models.Model):
+    """
+    Representa uma pasta do usuário. Suporta hierarquia via parent (self-FK).
+    """
+
+    name = models.CharField(_("name"), max_length=255)
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="folders",
+    )
+
+    parent = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="children",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = _("Folder")
+        verbose_name_plural = _("Folders")
+
+    def __str__(self):
+        return self.name
+```
+
+Agora, vamos explicar algumas partes do código acima (só o necessário, sem repetir o que já foi explicado em outras partes do README):
+
+```python
+name = models.CharField(_("name"), max_length=255)
+```
+
+ - **Essa linha define um campo de texto no modelo Django:**
+ - `models.CharField()` → campo de string de tamanho fixo no banco de dados;
+ - `_("name")` → rótulo legível do campo, marcado para tradução (i18n);
+ - `max_length=255` → limite máximo de 255 caracteres, usado tanto no banco quanto na validação do Django
+
+```python
+owner = models.ForeignKey(
+    settings.AUTH_USER_MODEL,
+    on_delete=models.CASCADE,
+    related_name="folders",
+)
+```
+
+ - **Introdução:**
+   - Esse bloco define um **relacionamento entre a pasta (Folder) e o usuário do sistema**.
+   - Ele diz que cada pasta pertence a um único usuário, enquanto um usuário pode ter várias pastas.
+   - É assim que o Django modela relações um-para-muitos no banco de dados.
+ - **Codificação:**
+   - `owner = models.ForeignKey( ... )`
+     - Cria um campo chamado **owner** que representa uma chave estrangeira (Foreign Key);
+     - Ou seja, uma referência a outro modelo.
+   - `settings.AUTH_USER_MODEL`
+     - Indica que o relacionamento é com o modelo de usuário configurado no projeto (seja o User padrão ou um customizado).
+     - Isso é melhor prática em Django, pois evita acoplamento direto.
+   - `on_delete=models.CASCADE`
+     - Define o comportamento quando o usuário é deletado:
+     - **NOTE:** Se o usuário for removido, todas as pastas dele também serão apagadas automaticamente no banco.
+   - `related_name="folders"`
+     - Define o nome do relacionamento reverso.
+     - Permite acessar as pastas de um usuário assim:
+       - `user.folders.all()`
+ - **Resumo conceitual:**
+   - 📁 Uma pasta pertence a um usuário;
+   - 👤 Um usuário pode ter várias pastas;
+   - 🧹 Deletar o usuário → deleta as pastas;
+   - 🔄 Acesso reverso limpo e explícito (user.folders)
+
+```python
+parent = models.ForeignKey(
+    "self",
+    null=True,
+    blank=True,
+    on_delete=models.CASCADE,
+    related_name="children",
+)
+```
+
+ - **Introdução:**
+   - Esse bloco define um **relacionamento recursivo** no modelo `Folder`.
+   - Ele permite que uma pasta contenha outras pastas, criando uma estrutura hierárquica (árvore) semelhante a um sistema de arquivos real.
+   - *Em outras palavras:* uma pasta pode ter uma pasta pai, e essa pasta pai pode ter várias pastas filhas.
+ - **Codificação:**
+   - `parent = models.ForeignKey( ... )`
+     - Cria um campo chamado `parent` que será uma chave estrangeira apontando para outra instância de `Folder`.
+   - `"self"`
+     - Indica que o relacionamento é com o próprio modelo Folder.
+     - Isso é obrigatório quando se quer criar hierarquias dentro do mesmo modelo.
+   - `null=True`
+     - Permite que o campo seja NULL no banco de dados.
+     - Isso é necessário para pastas que ficam na raiz, ou seja, não têm pasta pai.
+   - `blank=True`
+     - Permite que o campo fique vazio em formulários e validações do Django.
+     - Sem isso, o Django exigiria um parent sempre que uma pasta fosse criada.
+   - `on_delete=models.CASCADE`
+     - Define o comportamento ao deletar a pasta pai:
+       - Se uma pasta for removida, todas as suas subpastas também serão removidas.
+   - `related_name="children"`
+     - Define o nome do relacionamento reverso.
+     - Permite acessar as subpastas assim:
+       - `folder.children.all()`
+ - **Resumo conceitual:**
+   - 🌳 Estrutura em árvore;
+   - 📁 Pasta pode ter pai ou ser raiz;
+   - 👶 Uma pasta pode ter várias filhas;
+   - 🧹 Deletar uma pasta remove toda a subárvore;
+   - 🔄 Navegação fácil: folder.children
+
+```python
+created_at = models.DateTimeField(auto_now_add=True)
+is_deleted = models.BooleanField(default=False)
+deleted_at = models.DateTimeField(null=True, blank=True)
+```
+
+ - **Introdução:**
+   - Esse bloco implementa **controle de tempo de criação** e **soft delete** no modelo.
+   - Em vez de apagar registros definitivamente do banco, o sistema pode marcá-los como deletados, preservando histórico, integridade e possibilidade de auditoria ou restauração.
+ - **Codificação:**
+   - `created_at = models.DateTimeField(auto_now_add=True)`
+     - Cria um campo de data e hora que é preenchido automaticamente no momento da criação do registro.
+     - Depois de salvo, esse valor nunca é alterado pelo Django.
+   - `is_deleted = models.BooleanField(default=False)`
+     - Campo booleano que indica se o registro está logicamente deletado:
+       - *False* → ativo;
+       - *True* → considerado removido pelo sistema.
+     - **NOTE:** O registro continua no banco, mas pode ser *ignorado nas consultas (Soft Delete)*.
+   - `deleted_at = models.DateTimeField(null=True, blank=True)`
+     - Armazena quando o *soft delete* ocorreu:
+       - null=True → pode ser NULL no banco;
+       - blank=True → opcional em formulários
+     - Normalmente é preenchido somente quando *is_deleted* vira *True*.
+ - **Resumo conceitual:**
+   - 🕒 created_at → quando o objeto foi criado;
+   - 🚫 is_deleted → flag de exclusão lógica;
+   - 🧾 deleted_at → registro do momento da exclusão;
+   - ✅ Mantém histórico e evita perda definitiva de dados
+
+```python
+class Meta:
+    ordering = ["-created_at"]
+    verbose_name = _("Folder")
+    verbose_name_plural = _("Folders")
+```
+
+ - **Introdução:**
+   - O bloco (classe) `Meta` define configurações adicionais (metadados) do modelo *Folder*.
+   - Ele não cria campos no banco, mas controla como o Django trata, ordena e exibe o modelo internamente (admin, queries padrão, mensagens, etc.).
+ - **Codificação:**
+   - `ordering = ["-created_at"]`
+     - Define a ordenação padrão das consultas desse modelo.
+     - `-created_at` → ordem decrescente.
+     - Pastas mais recentes aparecem primeiro.
+   - `verbose_name = _("Folder")`
+     - Define o nome legível no singular do modelo, usado principalmente no Django Admin e mensagens.
+     - O `_()` marca o texto para tradução (i18n).
+   - `verbose_name_plural = _("Folders")`
+     - Define o nome legível no plural do modelo.
+     - Evita plurais automáticos incorretos e mantém suporte a tradução.
+ - **Resumo conceitual:**
+   - 📦 Meta → comportamento do modelo, não estrutura;
+   - 🔽 ordering → ordenação padrão global;
+   - 🏷️ verbose_name → nome amigável (singular);
+   - 🏷️ verbose_name_plural → nome amigável (plural);
+   - 🌍 Suporte a internacionalização
+
+```python
+def __str__(self):
+    return self.name
+```
+
+ - **Introdução:**
+   - Esse bloco define como uma instância do modelo será representada como texto.
+ - **Codificação:**
+   - `def __str__(self):`
+     - Define o método especial `__str__`, que controla a representação em string do objeto quando ele é convertido para texto.
+   - `return self.name`
+     - Retorna o valor do campo `name` como a representação textual da instância.
+     - Assim, uma pasta será exibida pelo seu nome, o que é intuitivo e legível.
+
+---
+
+<div id="workspace-models-file-class"></div>
+
+## `File() class`
+
+> A classe **File()** representa um arquivo enviado pelo usuário, definindo como ele é armazenado, organizado em pastas e associado a quem fez o upload, além de controlar seu ciclo básico de existência no sistema.
+
+[models.py](workspace/models.py)
+```python
+class File(models.Model):
+    name = models.CharField(_("name"), max_length=255)
+
+    file = models.FileField(_("file"), upload_to=workspace_upload_to)
+
+    folder = models.ForeignKey(
+        Folder,
+        on_delete=models.CASCADE,
+        related_name="files",
+        null=True,
+        blank=True,
+    )
+
+    uploader = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="uploaded_files",
+    )
+
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+        verbose_name = _("File")
+        verbose_name_plural = _("Files")
+
+    def __str__(self):
+        return self.name
+```
+
+Agora, vamos explicar algumas partes do código acima (só o necessário, sem repetir o que já foi explicado em outras partes do README):
+
+```python
+file = models.FileField(_("file"), upload_to=workspace_upload_to)
+```
+
+ - **Introdução:**
+   - Esse bloco define o campo responsável por armazenar o arquivo físico enviado pelo usuário.
+   - Ele conecta o modelo *File* a um arquivo real no sistema de arquivos (ou storage configurado), controlando onde o arquivo será salvo e como ele será referenciado no banco de dados.
+ - **Codificação:**
+   - `file = models.FileField()`
+     - Cria um campo do tipo `FileField`, usado pelo Django para lidar com upload, armazenamento e acesso a arquivos.
+   - `_("file")`
+     - Define o nome legível do campo, marcado para tradução (i18n).
+     - Esse rótulo aparece em formulários, validações e no Django Admin.
+   - `upload_to=workspace_upload_to`
+     - Define (chama) uma função customizada que determina o caminho onde o arquivo será salvo dentro do `MEDIA_ROOT`.
+     - No momento do upload, o Django chama essa função passando:
+       - a instância do modelo (instance);
+       - o nome original do arquivo (filename).
+     - A função retorna um path dinâmico, por exemplo:
+       - `workspace/user_3/folder_10/document.pdf`
+     - Isso permite:
+       - organização por usuário;
+       - organização por pasta;
+       - evitar colisões;
+       - refletir a hierarquia lógica no storage.
+ - **Resumo conceitual:**
+   - 📄 Campo responsável pelo arquivo físico;
+   - 📂 Salvo automaticamente em MEDIA_ROOT;
+   - 🧠 Caminho definido dinamicamente via função;
+   - 🌍 Suporte a tradução no rótulo;
+   - 🔗 Integra modelo ↔ sistema de arquivos.
+
+```python
+folder = models.ForeignKey(
+    Folder,
+    on_delete=models.CASCADE,
+    related_name="files",
+    null=True,
+    blank=True,
+)
+```
+
+ - **Introdução:**
+   - Esse bloco define o relacionamento entre o *arquivo (File)* e a *pasta (Folder)*.
+   - Ele permite que um arquivo esteja dentro de uma pasta específica ou na raiz, reproduzindo o comportamento clássico de um sistema de arquivos.
+   - Em termos de modelagem:
+     - Uma pasta pode conter vários arquivos;
+     - Um arquivo pertence a no máximo uma pasta.
+ - **Codificação:**
+   - `folder = models.ForeignKey( ... )`
+     - Cria um campo chamado folder que representa uma chave estrangeira para uma pasta.
+   - `Folder`
+     - Indica que o relacionamento é com o modelo Folder.
+     - Cada arquivo aponta diretamente para uma pasta existente.
+   - `on_delete=models.CASCADE`
+     - Define o comportamento quando a pasta é deletada:
+       - Todos os arquivos dentro dessa pasta também são removidos do banco.
+   - `related_name="files"`
+     - Define o nome do relacionamento reverso.
+     - Permite acessar os arquivos de uma pasta assim:
+       - `folder.files.all()`
+   - `null=True`
+     - Permite que o campo seja NULL no banco de dados.
+     - Isso representa arquivos que estão na raiz, sem pasta associada.
+   - `blank=True`
+     - Permite que o campo seja opcional em formulários e validações.
+     - Sem isso, o Django exigiria sempre uma pasta ao criar um arquivo.
+ - **Resumo conceitual:**
+   - 📁 Pasta → muitos arquivos;
+   - 📄 Arquivo → zero ou uma pasta;
+   - 🌱 Suporte a arquivos na raiz;
+   - 🧹 Cascade mantém consistência;
+   - 🔄 Acesso reverso simples (folder.files).
+
+```python
+uploader = models.ForeignKey(
+    settings.AUTH_USER_MODEL,
+    on_delete=models.CASCADE,
+    related_name="uploaded_files",
+)
+```
+
+ - **Introdução:**
+   - Esse bloco define quem enviou o arquivo para o sistema.
+   - Ele registra explicitamente o usuário responsável pelo upload, o que é fundamental para:
+     - auditoria;
+     - controle de acesso;
+     - permissões;
+     - histórico de ações.
+   - **NOTE:** Mesmo que o arquivo esteja dentro de uma pasta de outro contexto, o autor do upload continua identificado.
+ - **Codificação:**
+   - `uploader = models.ForeignKey( ... )`
+     - Cria um campo chamado `uploader` que representa uma chave estrangeira.
+   - `settings.AUTH_USER_MODEL`
+     - Indica que o relacionamento é com o modelo de usuário configurado no projeto.
+     - Isso garante compatibilidade com usuários customizados.
+   - `on_delete=models.CASCADE`
+     - Define o comportamento ao deletar o usuário:
+       - Se o usuário for removido, todos os arquivos enviados por ele também serão removidos.
+   - `related_name="uploaded_files"`
+     - Define o nome do relacionamento reverso.
+     - Permite acessar todos os arquivos enviados por um usuário assim:
+       - `user.uploaded_files.all()`
+ - **Resumo conceitual:**
+   - 👤 Identifica o autor do upload;
+   - 📄 Um usuário → muitos arquivos enviados;
+   - 🧹 Cascade mantém integridade;
+   - 🔄 Acesso reverso explícito (uploaded_files);
+   - 🔍 Base para permissões e auditoria
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="workspace-url-py"></div>
+
+## `url.py`
+
+> Define as *ROTAS/URLs* para o app `workspace`
+
+[url.py](workspace/urls.py)
+```python
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+    path(route="workspace", view=views.workspace_home, name="workspace_home"),
+    path(route="create-folder/", view=views.create_folder, name="create_folder"),
+    path(route="upload-file/", view=views.upload_file, name="upload_file"),
+    path(route="delete-folder/<int:folder_id>/", view=views.delete_folder, name="delete_folder"),
+    path(route="delete-file/<int:file_id>/", view=views.delete_file, name="delete_file"),
+    path(route="rename-folder/<int:folder_id>/", view=views.rename_folder, name="rename_folder"),
+    path(route="rename-file/<int:file_id>/", view=views.rename_file, name="rename_file"),
+    path(route="move-item/", view=views.move_item, name="move_item"),
+]
+```
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="workspace-validators-py"></div>
+
+## `validators.py`
+
+> Esse arquivo centraliza as regras de validação de arquivos enviados, garantindo que apenas formatos permitidos e tamanhos aceitáveis sejam aceitos pelo sistema antes do armazenamento.
+
+[validators.py](workspace/validators.py)
+```python
+import os
+
+from django.core.exceptions import ValidationError
+
+MAX_FILE_MB = 100
+MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024
+
+ALLOWED_EXTENSIONS = {
+    ".pdf",
+    ".txt",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".xlsm",
+    ".csv"
+}
+ALLOWED_FORMATTED = ", ".join(ext.upper() for ext in ALLOWED_EXTENSIONS)
+
+
+def validate_file_type(uploaded_file):
+    """Valida o tipo de arquivo pela extensão."""
+    ext = os.path.splitext(uploaded_file.name)[1].lower()
+
+    if ext not in ALLOWED_EXTENSIONS:
+        # Quebra de linha para evitar E501
+        msg = (
+            f"Arquivo inválido: '{uploaded_file.name}'. "
+            f"O formato '{ext}' não é permitido. "
+            f"Apenas {ALLOWED_FORMATTED} são aceitos."
+        )
+        raise ValidationError(msg)
+
+
+def validate_file_size(uploaded_file):
+    """Valida o tamanho do arquivo."""
+    if uploaded_file.size > MAX_FILE_BYTES:
+        # Outra quebra de linha para evitar E501
+        msg = (
+            f"O arquivo '{uploaded_file.name}' excede o limite "
+            f"de {MAX_FILE_MB}MB."
+        )
+        raise ValidationError(msg)
+
+
+def validate_file(uploaded_file):
+    """
+    Validação completa: tipo + tamanho.
+    """
+    validate_file_type(uploaded_file)
+    validate_file_size(uploaded_file)
+```
+
+Agora, vamos explicar algumas partes do código acima (só o necessário, sem repetir o que já foi explicado em outras partes do README):
+
+```python
+ALLOWED_FORMATTED = ", ".join(ext.upper() for ext in ALLOWED_EXTENSIONS)
+```
+
+ - **Introdução:**
+   - Essa linha cria uma string formatada e legível com as extensões de arquivo permitidas, geralmente para exibição ao usuário (mensagens de erro, validações, help text em formulários).
+   - Ela transforma uma coleção de extensões técnicas em um texto amigável.
+ - **Codificação:**
+   - `ALLOWED_EXTENSIONS`
+     - Uma coleção (lista, set ou tupla) contendo extensões permitidas, por exemplo:
+       - `{"pdf", "txt", "docx"}`
+   - `for ext in ALLOWED_EXTENSIONS`
+     - Itera por cada extensão permitida.
+   - `ext.upper()`
+     - Converte a extensão para letras maiúsculas, apenas para apresentação visual (não muda a regra de validação).
+   - `", ".join(...)`
+     - Junta todas as extensões em uma única string, separadas por vírgula e espaço.
+   - `📌 Resultado final:`
+     - `"PDF, TXT, DOCX"`
+ - **Resumo conceitual:**
+   - 🧾 Cria texto amigável para o usuário;
+   - 🔤 Apenas formatação (não afeta validação);
+   - ♻️ Sempre sincronizado com ALLOWED_EXTENSIONS;
+   - ✅ Boa prática para mensagens de erro e UI
+
+---
+
+<div id="workspace-validate-file-type"></div>
+
+#### `validate_file_type()`
+
+ - Esse bloco define uma função de validação personalizada usada pelo Django para verificar se o arquivo enviado tem uma extensão permitida.
+ - Ela é normalmente associada a um FileField e é executada no momento do upload, antes de salvar o arquivo.
+ - O objetivo é:
+   - bloquear formatos não suportados;
+   - evitar processamento desnecessário;
+   - fornecer uma mensagem de erro clara ao usuário.
+
+[validators.py](workspace/validators.py)
+```python
+def validate_file_type(uploaded_file):
+    """Valida o tipo de arquivo pela extensão."""
+    ext = os.path.splitext(uploaded_file.name)[1].lower()
+
+    if ext not in ALLOWED_EXTENSIONS:
+        # Quebra de linha para evitar E501
+        msg = (
+            f"Arquivo inválido: '{uploaded_file.name}'. "
+            f"O formato '{ext}' não é permitido. "
+            f"Apenas {ALLOWED_FORMATTED} são aceitos."
+        )
+        raise ValidationError(msg)
+```
+
+ - `ext = os.path.splitext(uploaded_file.name)[1].lower()`
+   - `uploaded_file.name` → nome original do arquivo.
+   - `os.path.splitext(...)` → separa nome e extensão;
+   - `[1]` → pega apenas a extensão (ex: .pdf);
+   - `.lower()` → normaliza para minúsculas.
+ - `if ext not in ALLOWED_EXTENSIONS:`
+   - Verifica se a extensão extraída não está na lista/conjunto de extensões permitidas.
+ - `raise ValidationError(msg)`
+   - Lança uma exceção do Django:
+     - interrompe o processo de upload;
+     - exibe a mensagem ao usuário;
+     - impede o salvamento do arquivo.
+
+---
+
+<div id="workspace-validate-file-size"></div>
+
+#### `validate_file_size()`
+
+ - Esse bloco define uma validação personalizada de tamanho de arquivo.
+ - Ela impede que usuários façam upload de arquivos maiores que o limite permitido, protegendo:
+   - desempenho do servidor;
+   - consumo de storage;
+   - tempo de processamento (especialmente importante em RAG);
+   - A validação ocorre antes do arquivo ser salvo.
+
+[validators.py](workspace/validators.py)
+```python
+def validate_file_size(uploaded_file):
+    """Valida o tamanho do arquivo."""
+    if uploaded_file.size > MAX_FILE_BYTES:
+        # Outra quebra de linha para evitar E501
+        msg = (
+            f"O arquivo '{uploaded_file.name}' excede o limite "
+            f"de {MAX_FILE_MB}MB."
+        )
+        raise ValidationError(msg)
+```
+
+ - `if uploaded_file.size > MAX_FILE_BYTES:`
+   - A condição verifica se o arquivo excede o tamanho permitido.
+   - `uploaded_file.size` → tamanho do arquivo em bytes.
+   - `MAX_FILE_BYTES` → limite máximo permitido (ex: 10 * 1024 * 1024)
+ - `raise ValidationError(msg)`
+   - Lança uma exceção de validação:
+     - interrompe o upload;
+     - impede o salvamento;
+     - exibe o erro ao usuário.
+
+---
+
+<div id="workspace-validate-file"></div>
+
+#### `validate_file()`
+
+ - Esse bloco define uma validação composta para arquivos.
+ - Em vez de aplicar várias validações separadamente no modelo ou formulário, ele centraliza todas as regras de validação em uma única função, garantindo que o arquivo só será aceito se todas as regras forem satisfeitas.
+ - Isso melhora:
+   - organização do código;
+   - reutilização;
+   - manutenção futura.
+
+[validators.py](workspace/validators.py)
+```python
+def validate_file(uploaded_file):
+    """
+    Validação completa: tipo + tamanho.
+    """
+    validate_file_type(uploaded_file)
+    validate_file_size(uploaded_file)
+```
+
+
+
+
+
+
+
+
+
+
+---
+
+
+
+       - [`workspace_home()`](#workspace-view-workspace-home)
+       - [`create_folder()`](#workspace-view-create-folder)
+       - [`upload_file()`](#workspace-view-upload-file)
+       - [`build_breadcrumbs()`](#workspace-view-build-breadcrumbs)
+       - [`delete_folder()`](#workspace-view-delete-folder)
+       - [`delete_file()`](#workspace-view-delete-file)
+       - [`rename_folder()`](#workspace-view-rename-folder)
+       - [`rename_file()`](#workspace-view-rename-file)
+       - [`_is_descendant`](#workspace-view-is-descendant)
+       - [`move_item()`](#workspace-view-move-item)
 
 
 

@@ -4,9 +4,8 @@ from django.core.exceptions import ValidationError
 from .models import File, Folder
 
 
-# Exemplo simples de validador de tamanho (50 MB)
 def validate_file_size(value):
-    max_mb = 50
+    max_mb = 100  # 100 MB
     if value.size > max_mb * 1024 * 1024:
         raise ValidationError(f"O arquivo não pode ser maior que {max_mb} MB.")
 
