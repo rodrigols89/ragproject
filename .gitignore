@@ -1,6 +1,12 @@
 # Django static and media
-/static/
+# /static/ - NÃO ignorar! Contém arquivos estáticos customizados que DEVEM ser versionados
+# (CSS, JS próprios do projeto)
+# Você pode ignorar apenas o admin se quiser (vem de pacotes instalados):
+/static/admin/*
+/static/account/*
 /media/
+
+# Ignorar: é onde o Django coleta arquivos estáticos para produção
 /staticfiles/
 
 # Ignore PostgreSQL

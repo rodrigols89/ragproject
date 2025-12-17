@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Workspace{% endblock %}
 
 {% block content %}
@@ -10,7 +11,8 @@
             <!-- Botão de voltar para Home -->
             <div class="p-2 border-b border-gray-700">
                 <a href="{% url 'home' %}"
-                   class="flex items-center justify-between p-2 hover:bg-gray-800 rounded">
+                   class="flex items-center justify-between 
+                          p-2 hover:bg-gray-800 rounded">
                     Home
                 </a>
             </div>
@@ -18,7 +20,8 @@
             <!-- Logout -->
             <div class="p-4 border-t border-gray-700">
                 <a href="{% url 'logout' %}"
-                   class="block text-center text-red-400 hover:text-red-300">
+                   class="block text-center text-red-400 
+                          hover:text-red-300">
                    Sair
                 </a>
             </div>
@@ -68,7 +71,9 @@
                     {% endfor %}
 
                 {% else %}
-                    <span class="text-gray-400 italic breadcrumb-drop" data-folder-id="">📁 Raiz</span>
+                    <span class="text-gray-400 italic breadcrumb-drop" data-folder-id="">
+                        📁 Raiz
+                    </span>
                 {% endif %}
 
             </nav>
@@ -78,9 +83,10 @@
                 <ul class="mb-4">
                     {% for message in messages %}
                         <li class="px-4 py-2 rounded 
-                            {% if message.tags == 'success' %}bg-green-100 text-green-700
+                            {% if message.tags == 'success' %}
+                                bg-green-100 text-green-700
                             {% else %}bg-red-100 text-red-700{% endif %}">
-                            {{ message }}
+                                {{ message }}
                         </li>
                     {% endfor %}
                 </ul>
@@ -89,14 +95,16 @@
             <!-- 📌 Botões -->
             <div class="mb-6 flex items-center gap-3 flex-wrap" data-preserve-selection="true">
 
-                <button command="show-modal" commandfor="create_folder_modal"
-                        class="inline-block
-                               bg-green-600
-                               hover:bg-green-700
-                               text-white
-                               px-4
-                               py-2
-                               rounded">
+                <button 
+                    command="show-modal" 
+                    commandfor="create_folder_modal"
+                    class="inline-block
+                           bg-green-600
+                           hover:bg-green-700
+                           text-white
+                           px-4
+                           py-2
+                           rounded">
                     ➕ Nova Pasta
                 </button>
 
@@ -107,13 +115,24 @@
 
                     {% csrf_token %}
 
-                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                    <input type="hidden" name="folder" value="{{ current_folder.id|default_if_none:'' }}">
+                    <input 
+                        type="hidden" 
+                        name="next" 
+                        value="{{ request.get_full_path }}">
+                    <input 
+                        type="hidden" 
+                        name="folder" 
+                        value="{{ current_folder.id|default_if_none:'' }}">
 
                     <label class="inline-block bg-blue-600 hover:bg-blue-700
                                   text-white px-4 py-2 rounded cursor-pointer">
                         📤 Fazer Upload
-                        <input type="file" name="file" multiple class="hidden" onchange="this.form.submit()">
+                        <input 
+                            type="file" 
+                            name="file" 
+                            multiple 
+                            class="hidden" 
+                            onchange="this.form.submit()">
                     </label>
 
                 </form>
@@ -138,6 +157,12 @@
                 <form id="delete_form" method="post" class="hidden">
                     {% csrf_token %}
                 </form>
+
+                <!-- Configuração para JavaScript -->
+                <div data-workspace-config 
+                     data-move-endpoint="{% url 'move_item' %}"
+                     style="display: none;">
+                </div>
 
                 <dialog
                     id="rename_modal"
@@ -188,9 +213,11 @@
                 <dialog
                     id="create_folder_modal"
                     aria-labelledby="modal-title"
+                    {% if show_modal %}data-auto-open="true"{% endif %}
                     class="fixed inset-0 size-auto max-h-none
                            max-w-none overflow-y-auto
                            bg-transparent backdrop:bg-transparent">
+
                     <el-dialog-backdrop class="fixed inset-0 bg-gray-900/50 transition-opacity"></el-dialog-backdrop>
 
                     <div tabindex="0"
@@ -202,8 +229,14 @@
                                    sm:w-full sm:max-w-md p-6">
                             <form method="post" action="{% url 'create_folder' %}">
                                 {% csrf_token %}
-                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                                <input type="hidden" name="parent" value="{{ current_folder.id|default_if_none:'' }}">
+                                <input 
+                                    type="hidden" 
+                                    name="next" 
+                                    value="{{ request.get_full_path }}">
+                                <input
+                                    type="hidden" 
+                                    name="parent" 
+                                    value="{{ current_folder.id|default_if_none:'' }}">
 
                                 <h3 id="modal-title" class="text-lg font-semibold text-gray-900 mb-4">
                                     Criar nova pasta
@@ -219,7 +252,9 @@
                                         value="{{ form.name.value|default:'' }}">
 
                                     {% if form.name.errors %}
-                                        <p id="server-error" class="text-sm text-red-500 mt-1">{{ form.name.errors.0 }}</p>
+                                        <p id="server-error" class="text-sm text-red-500 mt-1">
+                                            {{ form.name.errors.0 }}
+                                        </p>
                                     {% else %}
                                         <p id="server-error" class="text-sm text-red-500 mt-1 hidden"></p>
                                     {% endif %}
@@ -242,18 +277,6 @@
                     </div>
                 </dialog>
 
-                {% if show_modal %}
-                    <script>
-                        document.addEventListener("DOMContentLoaded", function () {
-                            const dlg = document.querySelector("#create_folder_modal");
-                            dlg.showModal();
-                            const input = dlg.querySelector("#nome_pasta");
-                            if (input) {
-                                setTimeout(() => { input.focus(); input.select(); }, 0);
-                            }
-                        });
-                    </script>
-                {% endif %}
             </el-dialog>
 
             <!-- 📁 Listagem -->
@@ -308,255 +331,5 @@
 {% endblock %}
 
 {% block scripts %}
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-
-            const modal = document.querySelector("#create_folder_modal");
-            const input = modal.querySelector("#nome_pasta");
-            const serverError = document.getElementById("server-error");
-            const openCreateBtn = document.querySelector('button[command="show-modal"][commandfor="create_folder_modal"]');
-            const cancelButtons = modal.querySelectorAll("button[command='close']");
-            const deleteButton = document.getElementById("delete_selected");
-            const deleteForm = document.getElementById("delete_form");
-            const renameButton = document.getElementById("rename_selected");
-            const renameModal = document.getElementById("rename_modal");
-            const renameForm = document.getElementById("rename_form");
-            const renameInput = document.getElementById("rename_input");
-            const renameCancel = document.getElementById("rename_cancel");
-            const breadcrumbDrops = document.querySelectorAll(".breadcrumb-drop");
-            const moveEndpoint = "{% url 'move_item' %}";
-            const csrfToken = deleteForm.querySelector("input[name='csrfmiddlewaretoken']").value;
-
-            function clearModalFields() {
-                input.value = "";
-                serverError.textContent = "";
-                serverError.classList.add("hidden");
-            }
-
-            function focusCreateInput() {
-                // timeout garante foco após showModal
-                setTimeout(() => {
-                    input.focus();
-                    input.select();
-                }, 0);
-            }
-
-            cancelButtons.forEach(btn => {
-                btn.addEventListener("click", function () {
-                    clearModalFields();
-                    modal.close();
-                    if (window.location.pathname.startsWith("/create-folder")) {
-                        window.location.href = "/workspace";
-                    }
-                });
-            });
-
-            modal.addEventListener("cancel", function () {
-                clearModalFields();
-                    modal.close();
-                    if (window.location.pathname.startsWith("/create-folder")) {
-                        window.location.href = "/workspace";
-                    }
-            });
-
-            if (openCreateBtn) {
-                openCreateBtn.addEventListener("click", (event) => {
-                    event.preventDefault();
-                    modal.showModal();
-                    focusCreateInput();
-                });
-            }
-
-            // ---------------------------
-            // Seleção com 1 clique; abrir com 2 cliques
-            // ---------------------------
-            const selectableItems = document.querySelectorAll(".selectable-item");
-
-            let selectedItem = null;
-            let draggedItem = null;
-
-            function clearSelection() {
-                selectableItems.forEach(el => el.classList.remove("ring-2", "ring-blue-500"));
-                selectedItem = null;
-                deleteButton.disabled = true;
-                renameButton.disabled = true;
-            }
-
-            function selectItem(item) {
-                selectableItems.forEach(el => el.classList.remove("ring-2", "ring-blue-500"));
-                item.classList.add("ring-2", "ring-blue-500");
-                selectedItem = item;
-                deleteButton.disabled = false;
-                renameButton.disabled = false;
-            }
-
-            function moveSelectedToFolder(targetFolderId) {
-                if (!selectedItem) return;
-                const payload = new URLSearchParams({
-                    item_type: selectedItem.dataset.kind,
-                    item_id: selectedItem.dataset.id,
-                    target_folder: targetFolderId || "",
-                });
-
-                fetch(moveEndpoint, {
-                    method: "POST",
-                    headers: {
-                        "X-CSRFToken": csrfToken,
-                    },
-                    body: payload,
-                })
-                    .then(async response => {
-                        const data = await response.json().catch(() => ({}));
-                        if (!response.ok) {
-                            const message = data.error || "Não foi possível mover o item.";
-                            alert(message);
-                            return;
-                        }
-                        window.location.reload();
-                    })
-                    .catch(() => alert("Erro inesperado ao mover item."));
-            }
-
-            selectableItems.forEach(item => {
-                item.addEventListener("click", (event) => {
-                    event.preventDefault();
-                    selectItem(item);
-                });
-
-                item.addEventListener("dblclick", () => {
-                    const url = item.dataset.url;
-                    const target = item.dataset.target || "_self";
-                    if (!url) return;
-
-                    if (target === "_blank") {
-                        window.open(url, "_blank");
-                    } else {
-                        window.location.href = url;
-                    }
-                });
-
-                item.addEventListener("dragstart", (event) => {
-                    draggedItem = item;
-                    event.dataTransfer.effectAllowed = "move";
-                    if (selectedItem !== item) {
-                        selectItem(item);
-                    }
-                });
-
-                item.addEventListener("dragend", () => {
-                    draggedItem = null;
-                    document.querySelectorAll(".drop-highlight").forEach(el => el.classList.remove("ring-2", "ring-green-500"));
-                });
-
-                if (item.dataset.kind === "folder") {
-                    item.addEventListener("dragover", (event) => {
-                        if (draggedItem && draggedItem !== item) {
-                            event.preventDefault();
-                            item.classList.add("ring-2", "ring-green-500", "drop-highlight");
-                        }
-                    });
-
-                    item.addEventListener("dragleave", () => {
-                        item.classList.remove("ring-2", "ring-green-500", "drop-highlight");
-                    });
-
-                    item.addEventListener("drop", (event) => {
-                        event.preventDefault();
-                        item.classList.remove("ring-2", "ring-green-500", "drop-highlight");
-                        if (!draggedItem || draggedItem === item) return;
-                        moveSelectedToFolder(item.dataset.id);
-                    });
-                }
-            });
-
-            deleteButton.addEventListener("click", (event) => {
-                event.preventDefault();
-                if (!selectedItem) return;
-
-                const kind = selectedItem.dataset.kind;
-                const id = selectedItem.dataset.id;
-                if (!kind || !id) return;
-
-                let action = "";
-                if (kind === "folder") {
-                    action = `/delete-folder/${id}/`;
-                } else if (kind === "file") {
-                    action = `/delete-file/${id}/`;
-                }
-
-                if (action) {
-                    deleteForm.action = action;
-                    deleteForm.submit();
-                }
-            });
-
-            renameButton.addEventListener("click", (event) => {
-                event.preventDefault();
-                if (!selectedItem) return;
-                const currentName = selectedItem.querySelector("span:nth-child(2)")?.textContent?.trim() || "";
-                renameInput.value = currentName;
-                renameModal.showModal();
-                renameInput.focus();
-            });
-
-            renameCancel.addEventListener("click", () => {
-                renameModal.close();
-            });
-
-            renameForm.addEventListener("submit", (event) => {
-                if (!selectedItem) {
-                    event.preventDefault();
-                    return;
-                }
-                const kind = selectedItem.dataset.kind;
-                const id = selectedItem.dataset.id;
-                if (!kind || !id) {
-                    event.preventDefault();
-                    return;
-                }
-                if (kind === "folder") {
-                    renameForm.action = `/rename-folder/${id}/`;
-                } else if (kind === "file") {
-                    renameForm.action = `/rename-file/${id}/`;
-                } else {
-                    event.preventDefault();
-                }
-            });
-
-            // Esc limpa a seleção
-            document.addEventListener("keydown", (event) => {
-                if (event.key === "Escape") {
-                    clearSelection();
-                }
-            });
-
-            // Clique fora de itens limpa seleção
-            document.addEventListener("click", (event) => {
-                const clickedItem = event.target.closest(".selectable-item");
-                const preserve = event.target.closest("[data-preserve-selection='true']");
-                if (!clickedItem && !preserve) {
-                    clearSelection();
-                }
-            }, true);
-
-            breadcrumbDrops.forEach(crumb => {
-                crumb.addEventListener("dragover", (event) => {
-                    if (!draggedItem) return;
-                    event.preventDefault();
-                    crumb.classList.add("ring-2", "ring-green-500", "drop-highlight");
-                });
-
-                crumb.addEventListener("dragleave", () => {
-                    crumb.classList.remove("ring-2", "ring-green-500", "drop-highlight");
-                });
-
-                crumb.addEventListener("drop", (event) => {
-                    event.preventDefault();
-                    crumb.classList.remove("ring-2", "ring-green-500", "drop-highlight");
-                    if (!draggedItem) return;
-                    moveSelectedToFolder(crumb.dataset.folderId || null);
-                });
-            });
-        });
-    </script>
+    <script src="{% static 'workspace/js/workspace_home.js' %}"></script>
 {% endblock scripts %}

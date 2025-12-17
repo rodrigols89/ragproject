@@ -6,6 +6,10 @@ authors = [
     {name = "rodrigols89",email = "rodrigols89.inbox@gmail.com"}
 ]
 readme = "README.md"
+
+
+#################### ( Dependencies ) ####################
+
 requires-python = ">=3.12,<4.0"
 dependencies = [
     "django (>=5.2.8,<6.0.0)",
@@ -18,15 +22,15 @@ dependencies = [
     "requests (>=2.32.5,<3.0.0)"
 ]
 
-
-################### ( Ruff Settings ) ####################
-
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.14.0"
 pytest = "^8.4.2"
 taskipy = "^1.14.1"
 pre-commit = "^4.3.0"
 pytest-cov = "^7.0.0"
+
+
+################### ( Ruff Settings ) ####################
 
 [tool.ruff]
 line-length = 79
@@ -48,15 +52,19 @@ select = ['I', 'F', 'E', 'W', 'PL', 'PT']
 # ----------------------- ( Linting ) -----------------------
 pre_lint = 'ruff check --fix'
 lint = 'ruff check'
-# ---------------------- ( pre-commit ) ---------------------
+# --------------------- ( pre-commit ) ----------------------
 precommit = 'pre-commit run --all-files'
-# ------------------- ( Django Management ) -----------------
+# ------------------ ( Project Management ) -----------------
 localserver = 'python manage.py runserver'
 killserver = 'sudo kill -9 $(sudo lsof -t -i:8000)'  # Kill service/port 8000
 createuser = 'docker compose exec web python manage.py createsuperuser'
 migrate = 'docker compose exec web python manage.py migrate'
 makemigrations = 'docker compose exec web python manage.py makemigrations'
-# ------------------- ( Docker Management ) -----------------
+addpermissions = """
+sudo chown -R 1000:1000 ./static ./media ./staticfiles || true &&
+sudo chmod -R 755 ./static ./media ./staticfiles
+"""
+# ------------------ ( Docker Management ) ------------------
 composes = 'docker compose up -d'
 rcomposes = 'docker restart $(docker ps -q)'
 rbcomposes = 'docker compose up --build -d'
@@ -72,7 +80,7 @@ opendb = 'docker exec -it postgresql psql -U easyrag -d easy_rag_db'
 openweb = 'docker exec -it django bash'
 opennginx = 'docker exec -it nginx bash'
 openredis = 'docker exec -it redis bash'
-# --------------------- ( Poetry Exports ) --------------------
+# -------------------- ( Poetry Exports ) -------------------
 exportdev = 'poetry export --without-hashes --with dev --format=requirements.txt --output=requirements-dev.txt'
 exportprod = 'poetry export --without-hashes --format=requirements.txt --output=requirements.txt'
 
@@ -80,4 +88,3 @@ exportprod = 'poetry export --without-hashes --format=requirements.txt --output=
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
-
