@@ -13,20 +13,23 @@ from .validators import validate_file
 
 @login_required(login_url="/")
 def workspace_home(request):
+
     folder_id = request.GET.get("folder")
 
     # 📁 1. Se o usuário clicou em alguma pasta
     if folder_id:
+
+        # Busca a pasta atual
         current_folder = get_object_or_404(
             Folder, id=folder_id, owner=request.user
         )
 
-        # Subpastas da pasta atual
+        # Busca subpastas
         folders = Folder.objects.filter(
             parent=current_folder, is_deleted=False
         )
 
-        # Arquivos da pasta atual
+        # Busca arquivos da pasta
         files = File.objects.filter(
             folder=current_folder, is_deleted=False
         )
@@ -43,16 +46,19 @@ def workspace_home(request):
         # 📁 2. Estamos no nível raiz
         current_folder = None
 
+        # Pastas da raiz
         folders = Folder.objects.filter(
             owner=request.user, parent__isnull=True, is_deleted=False
         )
 
+        # Arquivos da raiz
         files = File.objects.filter(
             uploader=request.user, folder__isnull=True, is_deleted=False
         )
 
         breadcrumbs = []  # Raiz não tem caminho
 
+    # Contexto do template
     context = {
         "current_folder": current_folder,
         "folders": folders,
@@ -65,10 +71,12 @@ def workspace_home(request):
 
 @login_required(login_url="/")
 def create_folder(request):
+
     if request.method == "POST":
+
         form = FolderForm(request.POST)
 
-        # Obter a pasta pai (se aplicável)
+        # Obtem a pasta pai (se aplicável)
         parent_id = request.POST.get("parent")
         parent_folder = None
         if parent_id:
@@ -79,7 +87,7 @@ def create_folder(request):
         if form.is_valid():
             name = form.cleaned_data["name"]
 
-            # Verificar duplicação (ignorando caixa alta/baixa)
+            # Verifica duplicação (ignorando caixa alta/baixa)
             if Folder.objects.filter(
                 owner=request.user,
                 name__iexact=name,
@@ -102,11 +110,6 @@ def create_folder(request):
                 )
                 return redirect(request.POST.get("next", "workspace_home"))
 
-        # ---------------------------------------------------------------
-        # ❗ Se houver erro, reconstruir contexto da pasta correta
-        # ---------------------------------------------------------------
-
-        # Recupere novamente *tudo* como na workspace_home
         if parent_folder:
             # Estamos dentro de uma pasta
             folders = Folder.objects.filter(
@@ -134,6 +137,7 @@ def create_folder(request):
             "breadcrumbs": breadcrumbs,
             "show_modal": True,  # reabrir modal com erro
         }
+
         return render(request, "pages/workspace_home.html", context)
 
     # Se método não for POST, redireciona para a home

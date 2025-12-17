@@ -3705,26 +3705,952 @@ def validate_file(uploaded_file):
 
 ---
 
+<div id="workspace-view-workspace-home">
+
+### `workspace_home()`
+
+> A view **workspace_home()** é a responsável por exibir o explorador de arquivos do usuário, *mostrando pastas*, *arquivos* e o *caminho de navegação (breadcrumbs)*, tanto na raiz quanto dentro de uma pasta específica.
+
+[views.py](workspace/views.py)
+```python
+@login_required(login_url="/")
+def workspace_home(request):
+
+    folder_id = request.GET.get("folder")
+
+    # 📁 1. Se o usuário clicou em alguma pasta
+    if folder_id:
+
+        # Busca a pasta atual
+        current_folder = get_object_or_404(
+            Folder, id=folder_id, owner=request.user
+        )
+
+        # Busca subpastas
+        folders = Folder.objects.filter(
+            parent=current_folder, is_deleted=False
+        )
+
+        # Busca arquivos da pasta
+        files = File.objects.filter(
+            folder=current_folder, is_deleted=False
+        )
+
+        # Breadcrumbs (caminho completo)
+        breadcrumbs = []
+        temp = current_folder
+        while temp:
+            breadcrumbs.append(temp)
+            temp = temp.parent
+        breadcrumbs.reverse()
+
+    else:
+        # 📁 2. Estamos no nível raiz
+        current_folder = None
+
+        # Pastas da raiz
+        folders = Folder.objects.filter(
+            owner=request.user, parent__isnull=True, is_deleted=False
+        )
+
+        # Arquivos da raiz
+        files = File.objects.filter(
+            uploader=request.user, folder__isnull=True, is_deleted=False
+        )
+
+        breadcrumbs = []  # Raiz não tem caminho
+
+    # Contexto do template
+    context = {
+        "current_folder": current_folder,
+        "folders": folders,
+        "files": files,
+        "breadcrumbs": breadcrumbs,
+    }
+
+    return render(request, "pages/workspace_home.html", context)
+```
+
+Agora, vamos explicar algumas partes do código acima (só o necessário, sem repetir o que já foi explicado em outras partes do README):
+
+```python
+folder_id = request.GET.get("folder")
+```
+
+ - **O que essa linha faz?**
+   - Ela tenta ler da URL o parâmetro chamado `folder`.
+   - Exemplo de URL:
+     - `/workspace?folder=5`
+   - Resultado:
+     - `folder_id == "5"` (string)
+     - Se não existir `?folder=...`, o valor será `None`
+   - **NOTE:** Essa linha decide se o usuário está navegando na raiz ou dentro de uma pasta.
+ - **Codificação:**
+   - `folder_id = request.GET.get("folder")`
+     - `request.GET`
+       - O **request.GET** é um dicionário especial do Django (QueryDict) que contém todos os parâmetros enviados pela URL (query string).
+       - Exemplo de URL: `/workspace?folder=12&page=2`
+       - Conteúdo de request.GET:
+         - `{"folder": "12", "page": "2"}`
+       - **NOTE:** Ele só lê dados do método GET (nada de POST aqui).
+     - `.get("folder")`
+       - O **.get()** é um método de dicionários (e do QueryDict) que tenta pegar um valor pela chave.
+       - Significa:
+         - “Pegue o valor associado à chave "folder" se ela existir.”
+         - Se "folder" existir → retorna o valor (como string);
+         - Se "folder" não existir → retorna None;
+         - Não lança erro
+
+```python
+if folder_id:
+    ...
+else:
+    ...
+```
+
+ - **Quando o if folder_id é usado?**
+   - Quando existe `?folder=<id>` na URL;
+   - Significa: o usuário clicou em uma pasta;
+   - O sistema deve mostrar conteúdo dessa pasta
+ - **Quando o else é usado?**
+   - Quando não existe o parâmetro folder;
+   - Significa: *o usuário está na raiz*;
+   - O sistema deve mostrar pastas e arquivos soltos;
+   - **NOTE:** Esse *if/else* define o nível da navegação.
+
+```python
+# Buscar a pasta atual
+current_folder = get_object_or_404(
+    Folder, id=folder_id, owner=request.user
+)
+```
+
+ - **Introdução:**
+   - Esse bloco identifica qual pasta o usuário está tentando acessar, garantindo:
+     - que ela existe;
+     - que ela pertence ao usuário logado.
+ - **Codificação:**
+   - `current_folder = get_object_or_404()`
+     - *get_object_or_404()* é uma função utilitária do Django usada para buscar um único objeto no banco de dados e retornar automaticamente um erro 404 se ele (o objeto) não existir ou não atender aos filtros informados.
+     - Ela é muito usada em *views* porque simplifica código e aumenta a segurança.
+     - Ela executa o equivalente a:
+       - Faz uma consulta no banco;
+       - Se encontrar exatamente um objeto → retorna esse objeto;
+       - Se não encontrar nenhum → lança `Http404`;
+       - Se os filtros não baterem (ex: objeto de outro usuário) → também lança `Http404`.
+       - **NOTE:** Ou seja: 👉 o usuário só vê o objeto se ele realmente puder acessá-lo.
+     - `Folder, id=folder_id, owner=request.user`
+       - `Folder` → Modelo onde a busca será feita.
+       - `id=folder_id` → Filtra pela pasta cujo ID veio da URL.
+       - `owner=request.user` → Garante que a pasta pertence ao usuário autenticado (segurança):
+         - Se qualquer condição falhar → 404.
+
+```python
+# Busca subpastas
+folders = Folder.objects.filter(
+    parent=current_folder, is_deleted=False
+)
+```
+
+ - **Introdução:**
+   - Esse bloco carrega as pastas filhas da pasta atual.
+ - **Codificação:**
+   - `folders = Folder.objects.filter()`
+     - `Folder.`
+       - *Folder* é o modelo Django, que representa a tabela folder no banco de dados.
+     - `objects.`
+       - É o manager padrão do Django.
+       - Ele é a “porta de entrada” para fazer consultas no banco relacionadas a esse modelo.
+       - Pense como: **“Quero falar com o banco sobre Folder”.**
+     - `filter()`
+       - É um método de consulta que:
+         - aplica condições;
+         - retorna zero, um ou vários objetos;
+         - nunca lança erro se não encontrar nada.
+       - **NOTE:** O retorno é sempre um *QuerySet*.
+       - No nosso caso, significa:
+         - **“Busque todas as pastas cujo pai é *"current_folder"* e que não estejam deletadas”.**
+     - `parent=current_folder` → Busca apenas pastas cujo pai é a pasta atual.
+     - `is_deleted=False` → Exclui pastas marcadas como deletadas (soft delete).
+
+```python
+# Busca arquivos da pasta
+files = File.objects.filter(
+    folder=current_folder, is_deleted=False
+)
+```
+
+ - **Introdução:**
+   - Esse bloco carrega os arquivos contidos na pasta atual.
+ - **Codificação:**
+   - `files = File.objects.filter()`
+     - Inicia uma consulta no modelo `File`.
+     - `folder=current_folder` → Seleciona apenas arquivos que pertencem à pasta atual.
+     - `is_deleted=False` → Ignora arquivos deletados logicamente (soft delete).
+
+```python
+# Breadcrumbs (caminho completo)
+breadcrumbs = []
+temp = current_folder
+while temp:
+    breadcrumbs.append(temp)
+    temp = temp.parent
+breadcrumbs.reverse()
+```
+
+ - **Introdução:**
+   - Esse bloco constrói o caminho hierárquico completo da pasta atual até a raiz.
+ - **Codificação:**
+   - `breadcrumbs = []`
+     - Lista vazia para armazenar o caminho.
+   - `temp = current_folder`
+     - Variável temporária para navegar pela hierarquia.
+   - `while temp:`
+     - Loop enquanto existir uma pasta (até chegar na raiz).
+   - `breadcrumbs.append(temp)`
+     - Adiciona a pasta atual ao caminho.
+   - `temp = temp.parent`
+     - Sobe um nível (vai para a pasta pai).
+   - `breadcrumbs.reverse()`
+     - Inverte a lista para ficar: **Raiz → ... → Pasta atual**
+
+```python
+else:
+    # 📁 2. Estamos no nível raiz
+    current_folder = None
+```
+
+ - **Introdução:**
+   - Esse bloco indica explicitamente que não há pasta selecionada.
+ - **Codificação:**
+   - `current_folder = None`
+     - Marca que o usuário está no nível raiz.
+     - Usado pelo template para ajustar comportamento visual.
+
+```python
+folders = Folder.objects.filter(
+    owner=request.user, parent__isnull=True, is_deleted=False
+)
+```
+
+ - **Introdução:**
+   - Esse bloco carrega pastas que não têm pai, ou seja, pastas da raiz.
+ - **Codificação:**
+   - `owner=request.user`
+     - Somente pastas do usuário logado.
+   - `parent__isnull=True`
+     - Seleciona apenas pastas sem pai (nível raiz).
+   - `is_deleted=False`
+     - Ignora pastas deletadas (soft delete).
+
+```python
+# Arquivos da raiz
+files = File.objects.filter(
+    uploader=request.user, folder__isnull=True, is_deleted=False
+)
+```
+
+ - **Introdução:**
+   - Esse bloco carrega arquivos soltos, que não pertencem a nenhuma pasta.
+ - **Codificação:**
+   - `uploader=request.user`
+     - Somente arquivos enviados pelo usuário.
+   - `folder__isnull=True`
+     - Arquivos que não estão em nenhuma pasta.
+   - `is_deleted=False`
+     - Ignora arquivos deletados (soft delete).
+
+```python
+breadcrumbs = []  # Raiz não tem caminho
+```
+
+ - **Introdução:**
+   - Define explicitamente que a raiz não possui caminho hierárquico.
+ - **Codificação:**
+   - Lista vazia.
+
+```python
+# Contexto do template
+context = {
+    "current_folder": current_folder,
+    "folders": folders,
+    "files": files,
+    "breadcrumbs": breadcrumbs,
+}
+```
+
+ - **Introdução:**
+   - Esse bloco prepara os dados que serão enviados para o template HTML.
+ - **Codificação:**
+   - `"current_folder": current_folder`
+     - Pasta atual (ou None).
+   - `"folders": folders`
+     - Lista de pastas (folders) a serem exibidas.
+   - `"files": files`
+     - Lista de arquivos (files) a serem exibidos.
+   - `"breadcrumbs": breadcrumbs`
+     - Caminho hierárquico completo.
+     - Caminho de navegação.
+
+```python
+return render(request, "pages/workspace_home.html", context)
+```
+
+ - **Introdução:**
+   - Esse bloco renderiza a página HTML do workspace.
+ - **Codificação:**
+   - `context`
+     - Dados enviados para o template.
+     - **Resultado:** HTML final exibido ao usuário.
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="workspace-view-create-folder"></div>
+
+## `create_folder()`
+
+> Essa view é responsável por criar uma nova pasta no workspace.
+
+Ela lida com:
+
+ - envio de formulário (POST);
+ - validação de dados;
+ - prevenção de nomes duplicados;
+ - associação da pasta ao usuário e à pasta pai;
+ - feedback visual (mensagens de sucesso ou erro).
+ - reconstrução do estado da navegação em caso de erro.
+
+> **NOTE:**  
+> Ela funciona como um **handler de ação**, não como uma página independente.
+
+[views.py](workspace/views.py)
+```python
+@login_required(login_url="/")
+def create_folder(request):
+
+    if request.method == "POST":
+
+        form = FolderForm(request.POST)
+
+        # Obtem a pasta pai (se aplicável)
+        parent_id = request.POST.get("parent")
+        parent_folder = None
+        if parent_id:
+            parent_folder = get_object_or_404(
+                Folder, id=parent_id, owner=request.user
+            )
+
+        if form.is_valid():
+            name = form.cleaned_data["name"]
+
+            # Verifica duplicação (ignorando caixa alta/baixa)
+            if Folder.objects.filter(
+                owner=request.user,
+                name__iexact=name,
+                parent=parent_folder,
+                is_deleted=False
+            ).exists():
+                form.add_error(
+                    "name",
+                    "Já existe uma pasta com esse nome nesse diretório.",
+                )
+            else:
+                # Criar nova pasta
+                new_folder = form.save(commit=False)
+                new_folder.owner = request.user
+                new_folder.parent = parent_folder
+                new_folder.save()
+
+                messages.success(
+                    request, f"Pasta '{name}' criada com sucesso!"
+                )
+                return redirect(request.POST.get("next", "workspace_home"))
+
+        if parent_folder:
+            # Estamos dentro de uma pasta
+            folders = Folder.objects.filter(
+                parent=parent_folder, is_deleted=False
+            )
+            files = File.objects.filter(
+                folder=parent_folder, is_deleted=False
+            )
+            breadcrumbs = build_breadcrumbs(parent_folder)
+        else:
+            # Estamos na raiz
+            folders = Folder.objects.filter(
+                owner=request.user, parent__isnull=True, is_deleted=False
+            )
+            files = File.objects.filter(
+                uploader=request.user, folder__isnull=True, is_deleted=False
+            )
+            breadcrumbs = []
+
+        context = {
+            "form": form,
+            "current_folder": parent_folder,
+            "folders": folders,
+            "files": files,
+            "breadcrumbs": breadcrumbs,
+            "show_modal": True,  # reabrir modal com erro
+        }
+
+        return render(request, "pages/workspace_home.html", context)
+
+    # Se método não for POST, redireciona para a home
+    return redirect("workspace_home")
+```
+
+Agora, vamos explicar algumas partes do código acima (só o necessário, sem repetir o que já foi explicado em outras partes do README):
+
+```python
+if request.method == "POST":
+    ...
+
+return redirect("workspace_home")
+```
+
+ - `if request.method == "POST":`
+   - Esse bloco garante que a criação de pasta só aconteça quando o formulário for enviado.
+   - Quando é utilizado:
+     - Quando o usuário clica em “Criar pasta”;
+     - Quando o navegador envia os dados via POST
+ - `return redirect("workspace_home")`
+   - **Quando não recebe POST:**
+   - A view não processa dados;
+   - Redireciona para a página principal;
+   - Evita acesso direto via URL (GET);
+   - Isso protege a lógica e segue boas práticas REST.
+
+```python
+form = FolderForm(request.POST)
+```
+
+ - **Introdução:**
+   - Cria uma instância do formulário Django preenchida com os dados enviados pelo usuário.
+     - `FolderForm` → classe do formulário.
+     - `request.POST` → dados do formulário.
+
+```python
+parent_id = request.POST.get("parent")
+parent_folder = None
+if parent_id:
+    parent_folder = get_object_or_404(
+        Folder, id=parent_id, owner=request.user
+    )
+```
+
+ - **Introdução:**
+   - Esse bloco determina onde a nova pasta será criada:
+     - dentro de outra pasta;
+     - ou na raiz.
+ - **Codificação:**
+   - `parent_id = request.POST.get("parent")`
+     - Obtém o ID da pasta pai enviado pelo formulário.
+   - `parent_folder = None`
+     - Inicializa como None (caso seja raiz).
+   - `if parent_id:`
+     - Verifica se o usuário escolheu uma pasta pai.
+     - `parent_folder = get_object_or_404(Folder, id=parent_id, owner=request.user)`
+       - Busca a pasta pai:
+         - garante que existe;
+         - garante que pertence ao usuário.
+
+```python
+if form.is_valid():
+    name = form.cleaned_data["name"]
+```
+
+ - **Introdução:**
+   - Esse bloco executa todas as validações do formulário.
+ - **Codificação:**
+   - `if form.is_valid():`
+     - Executa validações automáticas e customizadas.
+     - `is_valid()`
+       - **is_valid()** serve para validar os dados enviados pelo usuário.
+       - É um método da classe `django.forms.Form`;
+       - Também presente em `django.forms.ModelForm`;
+       - **NOTE:** Como `FolderForm` herda de uma dessas classes, ela ganha automaticamente o método `is_valid()`.
+   - `name = form.cleaned_data["name"]`
+     - Obtém o nome da pasta validado.
+     - `cleaned_data`
+       - cleaned_data é um dicionário com os dados finais e seguros do formulário.
+       - Ele contém:
+         - Apenas campos válidos.
+         - Valores:
+           - sanitizados;
+           - normalizados;
+           - convertidos para o tipo correto.
+
+```python
+if Folder.objects.filter(
+    owner=request.user,
+    name__iexact=name,
+    parent=parent_folder,
+    is_deleted=False
+).exists():
+```
+
+ - **Introdução:**
+   - Evita que o usuário crie duas pastas com o mesmo nome no mesmo diretório.
+ - **Codificação:**
+   - `owner=request.user` → somente pastas do usuário;
+   - `name__iexact=name` → ignora maiúsculas/minúsculas;
+   - `parent=parent_folder` → no mesmo nível;
+   - `is_deleted=False` → ignora soft delete;
+   - `.exists()` → retorna True ou False.
+
+```python
+form.add_error(
+    "name",
+    "Já existe uma pasta com esse nome nesse diretório.",
+)
+```
+
+ - **Introdução:**
+   - **Se existir duplicação.**
+   - Associa erro ao campo;
+   - Exibe no formulário.
+
+```python
+new_folder = form.save(commit=False)
+new_folder.owner = request.user
+new_folder.parent = parent_folder
+new_folder.save()
+```
+
+ - **Introdução:**
+   - **Se NÃO existir duplicação.**
+   - Cria uma nova pasta.
+ - **Codificação:**
+   - `new_folder = form.save(commit=False)`
+     - Cria o objeto sem salvar ainda.
+   - `new_folder.owner = request.user`
+     - Define o dono.
+   - `new_folder.parent = parent_folder`
+     - Define a pasta pai (ou None).
+   - `new_folder.save()`
+     - Salva no banco.
+
+```python
+if parent_folder:
+    ...
+else:
+    ...
+```
+
+ - **Introdução:**
+   - Esse bloco recria a tela exatamente como estava antes do erro, evitando que o usuário “perca” a navegação.
+ - **Codificação:**
+   - `Quando if parent_folder`
+     - Usuário estava dentro de uma pasta.
+   - `Quando else`
+     - Usuário estava na raiz.
+
+```python
+context = {
+    "form": form,
+    "current_folder": parent_folder,
+    "folders": folders,
+    "files": files,
+    "breadcrumbs": breadcrumbs,
+    "show_modal": True,  # reabrir modal com erro
+}
+```
+
+ - **Introdução:**
+   - Esse dicionário contém todos os dados necessários para renderizar a página corretamente, incluindo erros.
+   - `form` → com erros.
+   - `show_modal=True` → reabre o modal.
+
+```python
+return render(request, "pages/workspace_home.html", context)
+```
+
+ - **O que é context?**
+   - É o canal de comunicação entre a view e o template.
+   - Ele permite usar no HTML:
+     - `{{ folders }}`
+     - `{{ form.errors }}`
+     - `{{ breadcrumbs }}`
+ - **Para que serve?**
+   - exibir dados;
+   - exibir erros;
+   - controlar comportamento visual;
+   - **NOTE:** Sem *context*, o template seria *“cego”*.
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="workspace-view-upload-file"></div>
+
+## `upload_file()`
+
+ - A view **upload_file()** é responsável por receber arquivos enviados pelo usuário no workspace, garantindo segurança, organização e boa experiência de uso.
+ - Ela só permite upload para usuários autenticados e implementa um fluxo completo e robusto de upload.
+
+Em alto nível, essa view:
+
+ - 🔐 Exige login (@login_required)
+ - 📥 Recebe arquivos via POST (request.FILES)
+ - 📁 Associa o arquivo a uma pasta (ou à raiz)
+ - 🔍 Valida tipo e tamanho do arquivo
+ - 🔄 Evita sobrescrita renomeando automaticamente arquivos duplicados
+ - 💾 Salva o arquivo no banco e no sistema de arquivos
+ - 💬 Retorna feedback ao usuário via mensagens
+ - 🔁 Redireciona o usuário de volta ao workspace correto
+
+[views.py](workspace/views.py)
+```python
+
+@login_required(login_url="/")
+def upload_file(request):
+    """
+    View que faz upload de arquivos com:
+    - validação de extensão
+    - validação de tamanho
+    - renome automático em caso de duplicação
+    """
+    if request.method == "POST":
+        uploaded_file = request.FILES.get("file")
+        next_url = request.POST.get("next", "workspace_home")
+        folder_id = request.POST.get("folder")
+        folder = None
+
+        # pegar pasta atual se existir
+        if folder_id:
+            folder = get_object_or_404(
+                Folder, id=folder_id, owner=request.user
+            )
+
+        # nenhum arquivo enviado
+        if not uploaded_file:
+            messages.error(request, "Nenhum arquivo foi enviado.")
+            return redirect(next_url)
+
+        # ------------------------------
+        # 🔍 Validações via validators.py
+        # ------------------------------
+        try:
+            validate_file(uploaded_file)
+        except Exception as e:
+            # pega somente a mensagem, não a lista
+            messages.error(request, e.message)
+            return redirect(next_url)
+
+        # -------------------------------------
+        # 🔄 Renome automático em caso de duplicação
+        # -------------------------------------
+        original_name = uploaded_file.name
+        base, ext = os.path.splitext(original_name)
+        new_name = original_name
+        counter = 1
+
+        while File.objects.filter(
+            uploader=request.user,
+            folder=folder,
+            name__iexact=new_name,
+            is_deleted=False
+        ).exists():
+            new_name = f"{base} ({counter}){ext}"
+            counter += 1
+
+        # ------------------------------
+        # 💾 Criação do arquivo
+        # ------------------------------
+        File.objects.create(
+            name=new_name,
+            file=uploaded_file,
+            folder=folder,
+            uploader=request.user,
+        )
+
+        messages.success(request, f"Arquivo '{new_name}' enviado com sucesso!")
+        return redirect(next_url)
+
+    return redirect("workspace_home")
+```
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="workspace-view-build-breadcrumbs"></div>
+
+## `build_breadcrumbs()`
+
+> A função **build_breadcrumbs()** é uma função utilitária usada para construir o caminho hierárquico de pastas (breadcrumbs) dentro do workspace.
+
+[views.py](workspace/views.py)
+```python
+def build_breadcrumbs(folder):
+    """
+    Constrói a lista de breadcrumbs (caminho completo)
+    desde a raiz até a pasta atual.
+    """
+    breadcrumbs = []
+    while folder:
+        breadcrumbs.insert(0, folder)
+        folder = folder.parent
+    return breadcrumbs
+```
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="workspace-view-delete-folder"></div>
+
+## `delete_folder()`
+
+ - A view **delete_folder()** é responsável por *"excluir logicamente (soft delete)"* uma pasta do workspace do usuário.
+ - Em vez de remover o registro do banco de dados, ela implementa um soft delete, marcando a pasta como deletada (is_deleted = True) e registrando a data da exclusão.
+
+Essa abordagem permite:
+
+ - 🗑️ uso de lixeira;
+ - 🔒 recuperação futura;
+ - 📊 histórico e auditoria;
+ - 🚫 evitar perda definitiva de dados.
+
+Além disso, a view:
+
+ - garante que o usuário só possa excluir suas próprias pastas;
+ - redireciona o usuário corretamente após a exclusão;
+ - fornece feedback visual com mensagens.
+
+[views.py](workspace/views.py)
+```python
+@login_required(login_url="/")
+def delete_folder(request, folder_id):
+    folder = get_object_or_404(Folder, id=folder_id, owner=request.user)
+
+    # pasta pai p/ retornar após exclusão
+    parent = folder.parent
+
+    folder.is_deleted = True
+    folder.deleted_at = timezone.now()
+    folder.save()
+
+    messages.success(request, f"Pasta '{folder.name}' movida para a lixeira.")
+
+    if parent:
+        return redirect(f"/workspace?folder={parent.id}")
+
+    return redirect("workspace_home")
+```
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="workspace-view-delete-file"></div>
+
+## `delete_file()`
+
+ - A view **delete_file()** é responsável por excluir logicamente (soft delete) um arquivo do workspace do usuário.
+ - Assim como na exclusão de pastas, o arquivo não é removido fisicamente do banco nem do disco, apenas é marcado como deletado.
+
+Essa abordagem permite:
+
+ - 🗑️ uso de lixeira;
+ - 🔄 possível restauração futura;
+ - 🛡️ evitar perda definitiva de dados;
+ - 📜 manter histórico.
+
+A view também:
+
+ - garante que o usuário só possa excluir arquivos que ele mesmo enviou;
+ - redireciona corretamente para a pasta atual;
+ - fornece feedback visual ao usuário.
+
+[views.py](workspace/views.py)
+```python
+@login_required(login_url="/")
+def delete_file(request, file_id):
+    file = get_object_or_404(File, id=file_id, uploader=request.user)
+
+    folder = file.folder
+
+    file.is_deleted = True
+    file.deleted_at = timezone.now()
+    file.save()
+
+    messages.success(request, f"Arquivo '{file.name}' movido para a lixeira.")
+
+    if folder:
+        return redirect(f"/workspace?folder={folder.id}")
+
+    return redirect("workspace_home")
+```
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="workspace-view-rename-folder"></div>
+
+## `rename_folder()`
+
+> A view **rename_folder()** é responsável por *renomear* uma pasta existente no workspace do usuário, garantindo segurança, consistência e integridade dos dados.
+
+Ela implementa regras importantes de negócio:
+
+ - 🔐 Só usuários autenticados podem renomear pastas;
+ - 👤 O usuário só pode renomear pastas que são dele;
+ - 🗑️ Pastas já deletadas não podem ser renomeadas;
+ - ✏️ O novo nome não pode ser vazio;
+ - 🚫 Não pode haver nomes duplicados no mesmo diretório;
+ - 🔄 Mantém o usuário no mesmo local após a ação (next).
+
+> **NOTE:**  
+> Essa *view* é uma *view* de ação (não renderiza template), usada normalmente por formulários ou modais de renomeação.
+
+[views.py](workspace/views.py)
+```python
+@login_required(login_url="/")
+def rename_folder(request, folder_id):
+    folder = get_object_or_404(
+        Folder, id=folder_id, owner=request.user, is_deleted=False
+    )
+
+    if request.method != "POST":
+        return redirect("workspace_home")
+
+    new_name = request.POST.get("name", "").strip()
+    next_url = request.POST.get("next", "workspace_home")
+
+    if not new_name:
+        messages.error(request, "O nome da pasta não pode ser vazio.")
+        return redirect(next_url)
+
+    # impedir duplicatas no mesmo parent (case-insensitive), exceto a própria
+    if Folder.objects.filter(
+        owner=request.user,
+        parent=folder.parent,
+        name__iexact=new_name,
+        is_deleted=False,
+    ).exclude(id=folder.id).exists():
+        messages.error(
+            request, "Já existe uma pasta com esse nome nesse diretório."
+        )
+        return redirect(next_url)
+
+    folder.name = new_name
+    folder.save()
+    messages.success(request, f"Pasta renomeada para '{new_name}'.")
+    return redirect(next_url)
+```
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="workspace-view-rename-file"></div>
+
+## `rename_file()`
 
+> A view **rename_file()** é responsável por *renomear* um arquivo existente no workspace do usuário, aplicando as mesmas regras de segurança e consistência usadas no renomeio de pastas.
 
-       - [`workspace_home()`](#workspace-view-workspace-home)
-       - [`create_folder()`](#workspace-view-create-folder)
-       - [`upload_file()`](#workspace-view-upload-file)
-       - [`build_breadcrumbs()`](#workspace-view-build-breadcrumbs)
-       - [`delete_folder()`](#workspace-view-delete-folder)
-       - [`delete_file()`](#workspace-view-delete-file)
-       - [`rename_folder()`](#workspace-view-rename-folder)
-       - [`rename_file()`](#workspace-view-rename-file)
-       - [`_is_descendant`](#workspace-view-is-descendant)
-       - [`move_item()`](#workspace-view-move-item)
+Ela garante que:
 
+ - 🔐 Apenas usuários autenticados possam renomear arquivos;
+ - 👤 O usuário só possa renomear arquivos que ele enviou;
+ - 🗑️ Arquivos deletados não possam ser alterados;
+ - ✏️ O novo nome não seja vazio;
+ - 🚫 Não existam nomes duplicados no mesmo diretório;
+ - 🧭 O usuário permaneça no mesmo local após a ação.
 
+> **NOTE:**  
+> Essa *view* é uma view de ação (não renderiza template), normalmente acionada por um formulário ou modal.
 
+[views.py](workspace/views.py)
+```python
+@login_required(login_url="/")
+def rename_file(request, file_id):
+    file = get_object_or_404(
+        File, id=file_id, uploader=request.user, is_deleted=False
+    )
 
+    if request.method != "POST":
+        return redirect("workspace_home")
 
+    new_name = request.POST.get("name", "").strip()
+    next_url = request.POST.get("next", "workspace_home")
 
+    if not new_name:
+        messages.error(request, "O nome do arquivo não pode ser vazio.")
+        return redirect(next_url)
 
+    # impedir duplicatas no mesmo diretório (case-insensitive),
+    # exceto o próprio
+    if File.objects.filter(
+        uploader=request.user,
+        folder=file.folder,
+        name__iexact=new_name,
+        is_deleted=False,
+    ).exclude(id=file.id).exists():
+        messages.error(
+            request, "Já existe um arquivo com esse nome neste diretório."
+        )
+        return redirect(next_url)
 
+    file.name = new_name
+    file.save()
+    messages.success(request, f"Arquivo renomeado para '{new_name}'.")
+    return redirect(next_url)
+```
 
 
 
@@ -3735,269 +4661,126 @@ def validate_file(uploaded_file):
 
 
 
+---
+
+<div id="workspace-view-is-descendant"></div>
 
+## `_is_descendant()`
+
+> A função `_is_descendant()` é um helper interno (função auxiliar) usada para proteger a hierarquia de pastas do sistema.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+O objetivo dela é evitar operações inválidas, como:
+
+ - mover uma pasta para dentro dela mesma;
+ - mover uma pasta para dentro de um de seus próprios filhos (ou netos).
+
+Esse tipo de erro criaria um loop na árvore de pastas, quebrando toda a lógica de navegação, breadcrumbs e consultas recursivas.
+
+> **NOTE:**  
+> O `underscore (_)` no início do nome indica que ela é uma função interna, feita para uso apenas dentro do módulo.
+
+[views.py](workspace/views.py)
+```python
+def _is_descendant(folder, potential_parent):
+    """
+    Helper para evitar mover uma pasta para ela mesma ou seus filhos.
+    """
+    current = potential_parent
+    while current:
+        if current == folder:
+            return True
+        current = current.parent
+    return False
+```
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="workspace-view-move-item"></div>
+
+## `move_item()`
+
+> A **view move_item()** é responsável por mover pastas ou arquivos dentro do workspace do usuário, alterando sua localização na hierarquia (mudando a pasta pai).
+
+Ela foi pensada para ser usada em ações dinâmicas da interface (ex: drag-and-drop), por isso:
+
+ - ✅ aceita apenas requisições POST
+ - 🔁 não renderiza template
+ - 📦 responde em JSON
+ - 🔐 valida propriedade do item (segurança)
+ - 🌳 protege a hierarquia de pastas contra loops
+ - 📁 funciona tanto para pastas quanto para arquivos
+
+> **NOTE:**  
+> Essa view é um endpoint de API interna, não uma página.
+
+[views.py](workspace/views.py)
+```python
+@login_required(login_url="/")
+def move_item(request):
+    if request.method != "POST":
+        return JsonResponse({"error": "Método inválido."}, status=405)
+
+    item_type = request.POST.get("item_type")
+    item_id = request.POST.get("item_id")
+    target_folder_id = request.POST.get("target_folder") or None
+
+    if not item_type or not item_id:
+        return JsonResponse(
+            {"error": "Dados insuficientes para mover o item."}, status=400
+        )
+
+    target_folder = None
+    if target_folder_id:
+        target_folder = get_object_or_404(
+            Folder,
+            id=target_folder_id,
+            owner=request.user,
+            is_deleted=False,
+        )
+
+    if item_type == "folder":
+        folder = get_object_or_404(
+            Folder,
+            id=item_id,
+            owner=request.user,
+            is_deleted=False,
+        )
+
+        if target_folder and _is_descendant(folder, target_folder):
+            error_message = (
+                "Não é possível mover a pasta para dentro dela mesma."
+            )
+            return JsonResponse(
+                {"error": error_message},
+                status=400,
+            )
+
+        folder.parent = target_folder
+        folder.save()
+        return JsonResponse({"success": True})
+
+    elif item_type == "file":
+        file = get_object_or_404(
+            File,
+            id=item_id,
+            uploader=request.user,
+            is_deleted=False,
+        )
+        file.folder = target_folder
+        file.save()
+        return JsonResponse({"success": True})
+
+    return JsonResponse({"error": "Tipo de item inválido."}, status=400)
+```
 
 
 
