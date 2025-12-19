@@ -65,10 +65,10 @@ sudo chown -R 1000:1000 ./static ./media ./staticfiles || true &&
 sudo chmod -R 755 ./static ./media ./staticfiles
 """
 # ------------------ ( Docker Management ) ------------------
-composes = 'docker compose up -d'
-rcomposes = 'docker restart $(docker ps -q)'
-rbcomposes = 'docker compose up --build -d'
-ccomposes = """
+start_compose = 'docker compose up -d'
+restart_compose = 'docker restart $(docker ps -q)'
+build_compose = 'docker compose up --build -d'
+clean_compose = """
 docker stop $(docker ps -aq) 2>/dev/null || true &&
 docker rm $(docker ps -aq) 2>/dev/null || true &&
 docker rmi -f $(docker images -aq) 2>/dev/null || true &&
