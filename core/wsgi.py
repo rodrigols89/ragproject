@@ -1,16 +1,24 @@
 """
-WSGI config for core project.
+Configuração WSGI para o projeto core.
 
-It exposes the WSGI callable as a module-level variable named ``application``.
+Expõe o callable WSGI como uma variável de nível de módulo chamada
+``application``.
 
-For more information on this file, see
+Para mais informações sobre este arquivo, consulte:
 https://docs.djangoproject.com/en/5.2/howto/deployment/wsgi/
-"""
 
+WSGI (Web Server Gateway Interface) é a interface padrão entre
+servidores web e aplicações Python. Usado principalmente para deploy
+em produção com servidores como Gunicorn, uWSGI, etc.
+"""
 import os
 
 from django.core.wsgi import get_wsgi_application
 
+# Define o módulo de configurações do Django
+# Necessário antes de importar qualquer código Django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 
+# Aplicação WSGI exposta para o servidor
+# Esta variável é usada pelo servidor WSGI (ex: Gunicorn, uWSGI)
 application = get_wsgi_application()
