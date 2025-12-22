@@ -482,7 +482,9 @@
             }, 200);
 
             // Aciona o input de arquivo ao clicar no label
-            const fileLabel = document.querySelector('label[for="file_input"]');
+            const fileLabel = document.querySelector(
+                'label[for="file_input"]'
+            );
             if (fileLabel && fileInput) {
                 fileLabel.addEventListener("click", function(e) {
                     e.stopPropagation();

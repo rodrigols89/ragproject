@@ -1,0 +1,42 @@
+<!--
+    Template parcial para a sidebar de navegação.
+    
+    Este componente é usado em páginas autenticadas (home e workspace)
+    e contém:
+    - Link de navegação entre Home e Workspace
+    - Link de logout
+    
+    Variáveis esperadas:
+    - current_page: 'home' ou 'workspace' (opcional, usado para
+      destacar o link ativo)
+-->
+<aside class="w-64 bg-gray-900 text-white flex flex-col justify-between">
+    
+    <!-- Link de navegação -->
+    <div class="p-2 border-b border-gray-700">
+        {% if current_page == 'home' %}
+            <a class="flex items-center justify-between p-2 
+                      hover:bg-gray-800 rounded"
+               href="{% url 'workspace_home' %}">
+                Workspace
+            </a>
+        {% else %}
+            <a href="{% url 'home' %}"
+               class="flex items-center justify-between 
+                      p-2 hover:bg-gray-800 rounded">
+                Home
+            </a>
+        {% endif %}
+    </div>
+
+    <!-- Link de Logout -->
+    <div class="p-4 border-t border-gray-700">
+        <a href="{% url 'logout' %}"
+           class="block text-center text-red-400 
+                  hover:text-red-300">
+           Sair
+        </a>
+    </div>
+
+</aside>
+
