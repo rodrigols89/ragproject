@@ -324,19 +324,19 @@ def upload_file(request):
 def upload_folder(request):
     """
     View para upload de pastas inteiras.
-
-    Processa upload de uma pasta completa, criando a estrutura
-    de pastas e subpastas conforme necessário. Valida cada arquivo
-    e exibe mensagens de erro para arquivos inválidos.
+    
+    Cria a pasta principal e todas as subpastas detectadas.
+    Não processa arquivos.
 
     Args:
         request: Objeto HttpRequest do Django
 
     Returns:
-        HttpResponse: Redireciona após upload ou exibe erros
+        HttpResponse: Redireciona após criar as pastas
     """
     if request.method == "POST":
         # Obtém todos os arquivos da pasta enviada
+        # (apenas para detectar o nome)
         uploaded_files = request.FILES.getlist("files")
         next_url = request.POST.get("next", "workspace_home")
         folder_id = request.POST.get("folder")
@@ -351,6 +351,7 @@ def upload_folder(request):
             )
 
         # Verifica se algum arquivo foi enviado
+        # (necessário para detectar o nome)
         if not uploaded_files:
             messages.error(request, "Nenhuma pasta foi selecionada.")
             return redirect(next_url)
@@ -359,8 +360,8 @@ def upload_folder(request):
         # Primeiro tenta usar o nome detectado pelo JavaScript (se disponível)
         folder_name = request.POST.get("folder_name", "").strip()
         
-        # Se não foi fornecido pelo JavaScript, tenta detectar a partir dos
-        # arquivos
+        # Se não foi fornecido pelo JavaScript,
+        # tenta detectar a partir dos arquivos
         if not folder_name:
             # Coleta todos os primeiros diretórios dos caminhos dos arquivos
             first_dirs = []
@@ -368,27 +369,27 @@ def upload_folder(request):
                 file_path = uploaded_file.name
                 path_parts = file_path.split("/")
                 
-                # Se o arquivo tem um caminho (mais de uma parte), pega a
-                # primeira parte
+                # Se o arquivo tem um caminho (mais de uma parte),
+                # pega a primeira parte
                 if len(path_parts) > 1 and path_parts[0].strip():
                     first_dirs.append(path_parts[0].strip())
             
-            # Se todos os arquivos compartilham o mesmo primeiro diretório,
-            # esse é o nome da pasta
+            # Se todos os arquivos compartilham o mesmo primeiro
+            # diretório, esse é o nome da pasta
             if first_dirs:
                 unique_first_dirs = set(first_dirs)
                 if len(unique_first_dirs) == 1:
                     # Todos os arquivos estão no mesmo primeiro diretório
                     folder_name = list(unique_first_dirs)[0]
                 elif len(unique_first_dirs) > 1:
-                    # Arquivos estão em diferentes diretórios - usa o mais
-                    # comum
+                    # Arquivos estão em diferentes diretórios -
+                    # usa o mais comum
                     from collections import Counter
                     dir_counter = Counter(first_dirs)
                     folder_name = dir_counter.most_common(1)[0][0]
         
-        # Se ainda não encontrou um nome de pasta, usa um nome padrão baseado
-        # na data/hora
+        # Se ainda não encontrou um nome de pasta,
+        # usa um nome padrão baseado na data/hora
         if not folder_name:
             from django.utils import timezone
             timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
@@ -413,108 +414,212 @@ def upload_folder(request):
                 folder_name = f"{base_name} ({counter})"
                 counter += 1
 
-        # Cria a pasta principal primeiro
+        # Cria a pasta principal
         main_folder = Folder.objects.create(
             name=folder_name,
             owner=request.user,
             parent=parent_folder
         )
 
-        # Dicionário para armazenar pastas criadas (caminho -> Folder)
-        # Evita criar pastas duplicadas durante o processamento
+        # Agora detecta e cria as subpastas
+        # Tenta obter os caminhos completos do campo file_paths
+        # (enviado pelo JavaScript)
+        import json
+        file_paths_json = request.POST.get("file_paths", "")
+        file_paths_list = []
+        
+        if file_paths_json:
+            try:
+                file_paths_list = json.loads(file_paths_json)
+            except json.JSONDecodeError:
+                pass
+        
+        # Se não conseguiu obter do JSON, tenta usar uploaded_file.name
+        # Mas geralmente o Django não preserva o caminho completo
+        if not file_paths_list:
+            file_paths_list = [
+                uploaded_file.name for uploaded_file in uploaded_files
+            ]
+        
+        # Coleta todos os caminhos de subpastas únicos dos arquivos
+        all_folder_paths = set()
+        
+        for file_path in file_paths_list:
+            if not file_path:
+                continue
+                
+            path_parts = file_path.split("/")
+            
+            # Remove o primeiro diretório se corresponder
+            # ao nome da pasta principal
+            # Isso é necessário porque a pasta principal já foi criada
+            if len(path_parts) > 1:
+                first_dir = path_parts[0].strip()
+                # Remove se corresponde ao folder_name (case-insensitive)
+                if (folder_name and
+                        first_dir.lower() == folder_name.strip().lower()):
+                    path_parts = path_parts[1:]
+            
+            # Se o arquivo está em uma subpasta
+            # (ainda há partes após remover o prefixo)
+            if len(path_parts) > 1:
+                # Remove o nome do arquivo, mantendo apenas o caminho da pasta
+                folder_path = "/".join(path_parts[:-1])
+                if folder_path and folder_path.strip():
+                    all_folder_paths.add(folder_path.strip())
+                    
+                    # Também adiciona todos os caminhos intermediários
+                    # Ex: se temos "subpasta1/subpasta2",
+                    # também precisamos criar "subpasta1"
+                    path_components = folder_path.split("/")
+                    for i in range(1, len(path_components) + 1):
+                        intermediate_path = "/".join(path_components[:i])
+                        if intermediate_path and intermediate_path.strip():
+                            all_folder_paths.add(intermediate_path.strip())
+
+        # Cria todas as subpastas necessárias
+        # Ordena por profundidade (pastas mais rasas primeiro)
+        # para garantir ordem correta
+        sorted_paths = sorted(
+            all_folder_paths, key=lambda x: (x.count("/"), x)
+        )
+        
+        # Cache para armazenar pastas criadas (caminho -> Folder)
         folders_cache = {}
-        # A pasta principal é a raiz para os arquivos
-        folders_cache[""] = main_folder
+        folders_cache[""] = main_folder  # A pasta principal
+        
+        subfolders_created = 0
+        
+        for folder_path in sorted_paths:
+            if folder_path not in folders_cache:
+                # Cria a estrutura de pastas necessária
+                current_path = ""
+                current_parent = main_folder  # Começa da pasta principal
+
+                for subfolder_name in folder_path.split("/"):
+                    if not subfolder_name.strip():
+                        continue
+
+                    subfolder_name = subfolder_name.strip()
+
+                    if current_path:
+                        current_path = f"{current_path}/{subfolder_name}"
+                    else:
+                        current_path = subfolder_name
+
+                    # Verifica se a pasta já existe no cache
+                    if current_path in folders_cache:
+                        current_parent = folders_cache[current_path]
+                    else:
+                        # Verifica se a pasta já existe no banco de dados
+                        existing_folder = Folder.objects.filter(
+                            owner=request.user,
+                            parent=current_parent,
+                            name=subfolder_name,
+                            is_deleted=False
+                        ).first()
+
+                        if existing_folder:
+                            folders_cache[current_path] = existing_folder
+                            current_parent = existing_folder
+                        else:
+                            # Cria nova subpasta dentro da pasta principal
+                            new_folder = Folder.objects.create(
+                                name=subfolder_name,
+                                owner=request.user,
+                                parent=current_parent
+                            )
+                            folders_cache[current_path] = new_folder
+                            current_parent = new_folder
+                            subfolders_created += 1
+
+        # Agora processa e insere os arquivos nas pastas corretas
+        # Cria um mapeamento entre os arquivos e seus caminhos
+        files_with_paths = []
+        for i, uploaded_file in enumerate(uploaded_files):
+            file_path = ""
+            if i < len(file_paths_list):
+                file_path = file_paths_list[i]
+            else:
+                file_path = uploaded_file.name
+            
+            files_with_paths.append((uploaded_file, file_path))
 
         # Contadores para mensagens finais
         uploaded_count = 0
         error_count = 0
         error_messages = []
 
-        # Processa cada arquivo da pasta
-        for uploaded_file in uploaded_files:
-            # Extrai o caminho relativo do arquivo
-            # O formato é geralmente "nome_pasta/subpasta/arquivo.ext"
-            file_path = uploaded_file.name
+        # Processa cada arquivo
+        for uploaded_file, file_path in files_with_paths:
+            if not file_path:
+                file_path = uploaded_file.name
+
             path_parts = file_path.split("/")
+            
+            # Remove o primeiro diretório se corresponder
+            # ao nome da pasta principal
+            if len(path_parts) > 1:
+                first_dir = path_parts[0].strip()
+                if (folder_name and
+                        first_dir.lower() == folder_name.strip().lower()):
+                    path_parts = path_parts[1:]
 
             # Nome do arquivo é a última parte do caminho
             file_name = path_parts[-1]
 
-            # Caminho da pasta (todas as partes exceto o nome do arquivo)
-            if len(path_parts) > 1:
-                folder_path = "/".join(path_parts[:-1])
-            else:
-                folder_path = ""
-
-            # Valida o arquivo antes de processar
-            try:
-                validate_file(uploaded_file)
-            except Exception as e:
-                # Captura mensagem de erro da validação
-                error_count += 1
-                # Tenta extrair a mensagem do ValidationError
-                if hasattr(e, 'message'):
-                    error_message = e.message
-                elif hasattr(e, 'messages') and e.messages:
-                    error_message = e.messages[0]
-                else:
-                    error_message = str(e)
-                
-                # A mensagem do validador já inclui o nome do arquivo
-                # Formato: "Arquivo inválido: 'nome.ext'. O formato 'ext'
-                # não é permitido..."
-                error_messages.append(error_message)
-                continue
-
-            # Obtém ou cria a pasta para este arquivo
-            # Todos os arquivos vão para dentro da pasta principal criada
+            # Determina em qual pasta o arquivo deve ser inserido
+            # Por padrão, vai para a pasta principal
             target_folder = main_folder
-            if folder_path:
-                # Verifica se a pasta já foi criada no cache
-                if folder_path in folders_cache:
-                    target_folder = folders_cache[folder_path]
-                else:
-                    # Cria a estrutura de pastas necessária dentro da pasta
-                    # principal
-                    current_path = ""
-                    current_parent = main_folder  # Começa da pasta principal
-
-                    for subfolder_name in folder_path.split("/"):
-                        if not subfolder_name:
-                            continue
-
-                        if current_path:
-                            current_path = f"{current_path}/{subfolder_name}"
-                        else:
-                            current_path = subfolder_name
-
-                        # Verifica se a pasta já existe no cache
-                        if current_path in folders_cache:
-                            current_parent = folders_cache[current_path]
-                        else:
-                            # Verifica se a pasta já existe no banco de dados
+            
+            if len(path_parts) > 1:
+                # O arquivo está em uma subpasta
+                folder_path = "/".join(path_parts[:-1])
+                if folder_path and folder_path.strip():
+                    # Busca a pasta no cache
+                    if folder_path.strip() in folders_cache:
+                        target_folder = folders_cache[folder_path.strip()]
+                    else:
+                        # Se não estiver no cache, tenta buscar no banco
+                        # (não deveria acontecer, mas garante robustez)
+                        path_components = folder_path.strip().split("/")
+                        current_parent = main_folder
+                        for subfolder_name in path_components:
+                            if not subfolder_name:
+                                continue
                             existing_folder = Folder.objects.filter(
                                 owner=request.user,
                                 parent=current_parent,
                                 name=subfolder_name,
                                 is_deleted=False
                             ).first()
-
                             if existing_folder:
-                                folders_cache[current_path] = existing_folder
                                 current_parent = existing_folder
                             else:
-                                # Cria nova subpasta dentro da pasta principal
-                                new_folder = Folder.objects.create(
-                                    name=subfolder_name,
-                                    owner=request.user,
-                                    parent=current_parent
-                                )
-                                folders_cache[current_path] = new_folder
-                                current_parent = new_folder
+                                break
+                        target_folder = current_parent
 
-                    target_folder = current_parent
+            # Valida o arquivo antes de processar
+            try:
+                validate_file(uploaded_file)
+            except Exception as e:
+                error_count += 1
+                # Extrai a mensagem de erro do ValidationError do Django
+                from django.core.exceptions import ValidationError
+                if isinstance(e, ValidationError):
+                    if hasattr(e, 'messages') and e.messages:
+                        # ValidationError.messages é uma lista
+                        error_message = str(e.messages[0])
+                    elif hasattr(e, 'message'):
+                        error_message = str(e.message)
+                    else:
+                        error_message = str(e)
+                elif hasattr(e, 'message'):
+                    error_message = str(e.message)
+                else:
+                    error_message = str(e)
+                error_messages.append(error_message)
+                continue
 
             # Renome automático em caso de duplicação
             base, ext = os.path.splitext(file_name)
@@ -544,21 +649,12 @@ def upload_folder(request):
                 error_messages.append(f"{file_name}: Erro ao salvar arquivo")
 
         # Mensagens de sucesso/erro
-        if uploaded_count > 0:
-            if uploaded_count == 1:
-                messages.success(
-                    request,
-                    "Pasta enviada com sucesso! 1 arquivo processado."
-                )
-            else:
-                messages.success(
-                    request,
-                    f"Pasta enviada com sucesso! "
-                    f"{uploaded_count} arquivo(s) processado(s)."
-                )
-
-        if error_count > 0:
-            # Mostra até 5 erros específicos
+        # Se todos os arquivos falharam, remove a pasta criada
+        if uploaded_count == 0 and error_count > 0:
+            # Remove a pasta principal e todas as subpastas criadas
+            # Isso também remove as subpastas devido ao CASCADE
+            main_folder.delete()
+            # Mostra apenas os erros específicos dos arquivos
             for error_msg in error_messages[:5]:
                 messages.error(request, error_msg)
             if len(error_messages) > 5:
@@ -566,7 +662,29 @@ def upload_folder(request):
                     request,
                     f"E mais {len(error_messages) - 5} arquivo(s) com erro."
                 )
-
+        elif error_count == 0 and uploaded_count > 0:
+            # Nenhum erro: todos os arquivos foram processados com sucesso
+            messages.success(
+                request,
+                f"Pasta '{folder_name}' uploaded com sucesso!"
+            )
+        elif uploaded_count > 0 and error_count > 0:
+            # Alguns arquivos foram processados, mas há erros
+            # Não mostra mensagem de sucesso, apenas os erros
+            for error_msg in error_messages[:5]:
+                messages.error(request, error_msg)
+            if len(error_messages) > 5:
+                messages.warning(
+                    request,
+                    f"E mais {len(error_messages) - 5} arquivo(s) com erro."
+                )
+        else:
+            # Caso raro: nenhum arquivo foi processado
+            # e nenhum erro foi registrado
+            # (não deveria acontecer, mas garante robustez)
+            main_folder.delete()
+            messages.error(request, f"Nenhum arquivo foi processado.")
+        
         return redirect(next_url)
 
     return redirect("workspace_home")

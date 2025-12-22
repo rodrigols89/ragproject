@@ -391,6 +391,16 @@
         // Limpa seleção ao clicar fora dos itens
         // Usa capture phase para garantir que funcione
         document.addEventListener("click", (event) => {
+            // Ignora cliques no botão de upload e no menu de upload
+            const uploadButton = document.getElementById("upload_button");
+            const uploadMenu = document.getElementById("upload_menu");
+            if (uploadButton && uploadButton.contains(event.target)) {
+                return; // Não limpa seleção se clicou no botão de upload
+            }
+            if (uploadMenu && uploadMenu.contains(event.target)) {
+                return; // Não limpa seleção se clicou no menu de upload
+            }
+            
             const clickedItem = event.target.closest(
                 ".selectable-item"
             );
@@ -447,90 +457,6 @@
             });
         });
 
-        // ====================================================================
-        // DROPDOWN DE UPLOAD
-        // ====================================================================
 
-        const uploadButton = document.getElementById("upload_button");
-        const uploadMenu = document.getElementById("upload_menu");
-        const fileInput = document.getElementById("file_input");
-        const folderInput = document.getElementById("folder_input");
-
-        if (uploadButton && uploadMenu) {
-            // Abre/fecha o dropdown ao clicar no botão
-            uploadButton.addEventListener("click", function(e) {
-                e.stopPropagation();
-                e.preventDefault();
-                // Remove a classe hidden para mostrar o menu
-                if (uploadMenu.classList.contains("hidden")) {
-                    uploadMenu.classList.remove("hidden");
-                } else {
-                    uploadMenu.classList.add("hidden");
-                }
-            });
-
-            // Fecha o dropdown ao clicar fora (com delay para não interferir
-            // com o clique no botão)
-            setTimeout(function() {
-                document.addEventListener("click", function(e) {
-                    if (uploadButton && uploadMenu && 
-                        !uploadButton.contains(e.target) && 
-                        !uploadMenu.contains(e.target)) {
-                        uploadMenu.classList.add("hidden");
-                    }
-                });
-            }, 200);
-
-            // Aciona o input de arquivo ao clicar no label
-            const fileLabel = document.querySelector(
-                'label[for="file_input"]'
-            );
-            if (fileLabel && fileInput) {
-                fileLabel.addEventListener("click", function(e) {
-                    e.stopPropagation();
-                    uploadMenu.classList.add("hidden");
-                    setTimeout(function() {
-                        fileInput.click();
-                    }, 50);
-                });
-            }
-        }
-
-        // ====================================================================
-        // MODAL DE UPLOAD DE PASTA
-        // ====================================================================
-
-        const openFolderUploadModal = document.getElementById(
-            "open_folder_upload_modal"
-        );
-        const uploadFolderModal = document.getElementById(
-            "upload_folder_modal"
-        );
-        const cancelFolderUpload = document.getElementById(
-            "cancel_folder_upload"
-        );
-        
-        if (openFolderUploadModal && uploadFolderModal) {
-            openFolderUploadModal.addEventListener("click", function(e) {
-                e.stopPropagation();
-                if (uploadMenu) {
-                    uploadMenu.classList.add("hidden");
-                }
-                uploadFolderModal.showModal();
-            });
-        }
-        
-        if (cancelFolderUpload && uploadFolderModal) {
-            cancelFolderUpload.addEventListener("click", function() {
-                uploadFolderModal.close();
-            });
-        }
-        
-        // Fecha o modal ao pressionar ESC
-        if (uploadFolderModal) {
-            uploadFolderModal.addEventListener("cancel", function() {
-                uploadFolderModal.close();
-            });
-        }
     });
 })();

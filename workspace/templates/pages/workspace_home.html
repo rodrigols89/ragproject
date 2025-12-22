@@ -104,85 +104,46 @@
                             <label for="file_input" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
                                 📄 Arquivo
                             </label>
-                            <button type="button" id="open_folder_upload_modal" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
+                            <label for="folder_input" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer">
                                 📁 Pasta
-                            </button>
+                            </label>
                         </div>
                     </div>
                 </div>
 
-                <!-- Modal para upload de pasta -->
-                <dialog
-                    id="upload_folder_modal"
-                    aria-labelledby="upload-folder-title"
-                    class="fixed inset-0 size-auto max-h-none
-                           max-w-none overflow-y-auto bg-transparent
-                           backdrop:bg-transparent">
-                    <div tabindex="0"
-                         class="flex min-h-full items-center
-                                justify-center p-4 text-center
-                                sm:p-0">
-                        <div class="relative transform rounded-lg
-                                    bg-white shadow-xl transition-all
-                                    sm:w-full sm:max-w-md p-6">
-                            <h3 id="upload-folder-title" class="text-lg font-semibold text-gray-900 mb-4">
-                                Fazer Upload de Pasta
-                            </h3>
-                            <p class="text-sm text-gray-600 mb-4">
-                                Selecione a pasta que deseja fazer upload.
-                                O nome da pasta será detectado automaticamente.
-                            </p>
-                            <form id="upload_folder_modal_form" method="post"
-                                  action="{% url 'upload_folder' %}"
-                                  enctype="multipart/form-data">
-                                {% csrf_token %}
-                                <input 
-                                    type="hidden" 
-                                    name="next" 
-                                    value="{{ request.get_full_path }}">
-                                <input 
-                                    type="hidden" 
-                                    name="folder" 
-                                    value="{{ current_folder.id|default_if_none:'' }}">
-                                
-                                <div class="mb-4">
-                                    <label for="folder_input_modal" class="block text-sm font-medium text-gray-700 mb-2">
-                                        Selecionar pasta
-                                    </label>
-                                    <input 
-                                        type="file" 
-                                        name="files" 
-                                        id="folder_input_modal"
-                                        webkitdirectory 
-                                        directory 
-                                        multiple 
-                                        class="block w-full text-sm text-gray-500
-                                               file:mr-4 file:py-2 file:px-4
-                                               file:rounded-full file:border-0
-                                               file:text-sm file:font-semibold
-                                               file:bg-blue-50 file:text-blue-700
-                                               hover:file:bg-blue-100"
-                                        required>
-                                    <input 
-                                        type="hidden" 
-                                        name="folder_name" 
-                                        id="detected_folder_name">
-                                </div>
-
-                                <div class="flex justify-end space-x-2">
-                                    <button type="button" id="cancel_folder_upload"
-                                            class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded">
-                                        Cancelar
-                                    </button>
-                                    <button type="submit"
-                                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded">
-                                        Fazer Upload
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                </dialog>
+                <!-- Formulário para upload de pasta -->
+                <form method="post"
+                      id="upload_folder_form"
+                      action="{% url 'upload_folder' %}"
+                      enctype="multipart/form-data"
+                      class="hidden">
+                    {% csrf_token %}
+                    <input 
+                        type="hidden" 
+                        name="next" 
+                        value="{{ request.get_full_path }}">
+                    <input 
+                        type="hidden" 
+                        name="folder" 
+                        value="{{ current_folder.id|default_if_none:'' }}">
+                    <input 
+                        type="file" 
+                        name="files" 
+                        id="folder_input"
+                        webkitdirectory 
+                        directory 
+                        multiple 
+                        class="hidden" 
+                        required>
+                    <input 
+                        type="hidden" 
+                        name="folder_name" 
+                        id="detected_folder_name">
+                    <input 
+                        type="hidden" 
+                        name="file_paths" 
+                        id="file_paths_json">
+                </form>
 
                 <!-- Formulário para upload de arquivo -->
                 <form method="post"
@@ -390,10 +351,6 @@
                                     <span>📄</span>
                                     <span>{{ file.name }}</span>
                                 </span>
-                                <p class="text-xs text-gray-500">
-                                    Enviado em {{ file.uploaded_at|date:"d/m/Y H:i" }}
-                                    ({{ file.file.size|filesizeformat }})
-                                </p>
                             </div>
                         </li>
                     {% endfor %}
@@ -436,74 +393,60 @@
                 }
             }
             
-            function initFolderUploadModal() {
-                const openBtn = document.getElementById('open_folder_upload_modal');
-                const modal = document.getElementById('upload_folder_modal');
-                const cancelBtn = document.getElementById('cancel_folder_upload');
-                
-                if (openBtn && modal) {
-                    openBtn.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        const uploadMenu = document.getElementById('upload_menu');
-                        if (uploadMenu) {
-                            uploadMenu.classList.add('hidden');
-                        }
-                        modal.showModal();
-                    });
-                }
-                
-                if (cancelBtn && modal) {
-                    cancelBtn.addEventListener('click', function() {
-                        modal.close();
-                    });
-                }
-                
-                // Fecha o modal ao pressionar ESC
-                if (modal) {
-                    modal.addEventListener('cancel', function() {
-                        modal.close();
-                    });
-                }
-                
-                // Detecta o nome da pasta quando arquivos são selecionados
-                const folderInput = document.getElementById('folder_input_modal');
+            function initFolderUpload() {
+                const folderInput = document.getElementById('folder_input');
                 const folderNameInput = document.getElementById('detected_folder_name');
+                const filePathsInput = document.getElementById('file_paths_json');
+                const folderForm = document.getElementById('upload_folder_form');
+                const uploadMenu = document.getElementById('upload_menu');
                 
-                if (folderInput && folderNameInput) {
+                if (folderInput && folderNameInput && folderForm && filePathsInput) {
+                    // Detecta o nome da pasta quando arquivos são selecionados
                     folderInput.addEventListener('change', function(e) {
                         const files = e.target.files;
                         if (files && files.length > 0) {
-                            // Tenta extrair o nome da pasta do caminho do primeiro arquivo
-                            // O caminho pode incluir o nome da pasta selecionada
-                            const firstFile = files[0];
-                            const filePath = firstFile.webkitRelativePath || firstFile.name;
-                            const pathParts = filePath.split('/');
+                            // Fecha o menu dropdown
+                            if (uploadMenu) {
+                                uploadMenu.classList.add('hidden');
+                            }
                             
-                            // Se o arquivo tem um caminho, a primeira parte pode ser o
-                            // nome da pasta ou pode ser uma subpasta. Vamos verificar
-                            // todos os arquivos.
+                            // Coleta todos os caminhos completos dos arquivos
+                            const filePaths = [];
                             const firstDirs = new Set();
+                            
                             for (let i = 0; i < files.length; i++) {
                                 const file = files[i];
+                                // Usa webkitRelativePath que contém o caminho completo
                                 const path = file.webkitRelativePath || file.name;
+                                filePaths.push(path);
+                                
+                                // Extrai o primeiro diretório para detectar o nome da pasta
                                 const parts = path.split('/');
                                 if (parts.length > 1 && parts[0].trim()) {
                                     firstDirs.add(parts[0].trim());
                                 }
                             }
                             
-                            // Se todos os arquivos compartilham o mesmo primeiro
-                            // diretório, esse é o nome da pasta
+                            // Envia os caminhos completos como JSON
+                            filePathsInput.value = JSON.stringify(filePaths);
+                            
+                            // Detecta o nome da pasta
                             if (firstDirs.size === 1) {
                                 folderNameInput.value = Array.from(firstDirs)[0];
                             } else if (firstDirs.size > 1) {
                                 // Múltiplos diretórios - usa o primeiro encontrado
+                                const firstFile = files[0];
+                                const filePath = firstFile.webkitRelativePath || firstFile.name;
+                                const pathParts = filePath.split('/');
                                 folderNameInput.value = pathParts[0];
                             } else {
                                 // Arquivos na raiz da pasta selecionada - não temos o nome
                                 // O backend vai usar um nome padrão
                                 folderNameInput.value = '';
                             }
+                            
+                            // Submete o formulário automaticamente
+                            folderForm.submit();
                         }
                     });
                 }
@@ -512,11 +455,11 @@
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', function() {
                     initUploadDropdown();
-                    initFolderUploadModal();
+                    initFolderUpload();
                 });
             } else {
                 initUploadDropdown();
-                initFolderUploadModal();
+                initFolderUpload();
             }
         })();
     </script>
