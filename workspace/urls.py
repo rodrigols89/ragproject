@@ -31,6 +31,13 @@ urlpatterns = [
         name="upload_file"
     ),
 
+    # Upload de pasta
+    path(
+        route="upload-folder/",
+        view=views.upload_folder,
+        name="upload_folder"
+    ),
+
     # Exclusão de pasta
     path(
         route="delete-folder/<int:folder_id>/",
