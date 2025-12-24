@@ -1,0 +1,20 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-lint
+        name: ruff check
+        entry: task lint
+        language: system
+        types: [python]
+
+      - id: pytest-test
+        name: pytest test
+        entry: task test
+        language: system
+        types: [python]
+
+      - id: pytest-coverage
+        name: pytest coverage
+        entry: task post_test
+        language: system
+        types: [python]

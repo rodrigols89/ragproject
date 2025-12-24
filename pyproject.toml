@@ -1,0 +1,67 @@
+[project]
+name = "ragproject"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "rodrigols89",email = "rodrigols89.inbox@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dependencies = [
+]
+
+
+#################### ( Dependencies ) ####################
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.14.10"
+pytest = "^9.0.2"
+pytest-cov = "^7.0.0"
+
+
+################### ( Ruff Settings ) ####################
+taskipy = "^1.14.1"
+pre-commit = "^4.5.1"
+
+[tool.ruff]
+line-length = 79
+exclude = [
+    "core/settings.py",
+    "workspace/migrations",
+    "users/adapter.py",
+    "workspace/urls.py"
+]
+
+[tool.ruff.lint]
+preview = true
+select = ['I', 'F', 'E', 'W', 'PL', 'PT']
+
+
+################## ( Pytest Settings ) ###################
+
+[tool.pytest.ini_options]
+pythonpath = "."
+addopts = '-p no:warnings'
+
+
+################## ( Taskipy Settings ) ##################
+
+[tool.taskipy.tasks]
+# ----------------------- ( Linting ) -----------------------
+pre_lint = 'ruff check --fix'
+lint = 'ruff check'
+# --------------------- ( pre-commit ) ----------------------
+precommit = 'pre-commit run --all-files'
+# ------------------ ( Project Management ) -----------------
+localserver = 'python manage.py runserver'
+killserver = 'sudo kill -9 $(sudo lsof -t -i:8000)'  # Kill service/port 8000
+addpermissions = """
+sudo chown -R 1000:1000 ./static ./media ./staticfiles || true &&
+sudo chmod -R 755 ./static ./media ./staticfiles
+"""
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
