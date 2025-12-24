@@ -11,10 +11,6 @@ from allauth.socialaccount.adapter import (
 )
 
 
-# ============================================================================
-# ADAPTADOR DE CONTA PADRÃO
-# ============================================================================
-
 class NoMessageAccountAdapter(DefaultAccountAdapter):
     """
     Adapter para suprimir mensagens automáticas do allauth.
@@ -51,14 +47,8 @@ class NoMessageAccountAdapter(DefaultAccountAdapter):
         Returns:
             None - Não adiciona nenhuma mensagem
         """
-        # Retorna sem chamar super() para evitar que o allauth
-        # adicione mensagens automáticas ao sistema de mensagens
         return
 
-
-# ============================================================================
-# ADAPTADOR DE CONTA SOCIAL
-# ============================================================================
 
 class NoMessageSocialAccountAdapter(DefaultSocialAccountAdapter):
     """
@@ -96,6 +86,4 @@ class NoMessageSocialAccountAdapter(DefaultSocialAccountAdapter):
         Returns:
             None - Não adiciona nenhuma mensagem
         """
-        # Retorna sem chamar super() para evitar que o allauth
-        # adicione mensagens automáticas ao sistema de mensagens
         return

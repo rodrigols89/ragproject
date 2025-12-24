@@ -12,10 +12,6 @@ from django.shortcuts import redirect, render
 
 from users.forms import CustomUserCreationForm
 
-# ============================================================================
-# VIEWS DE AUTENTICAÇÃO
-# ============================================================================
-
 
 @login_required(login_url="/")
 def home_view(request):
@@ -49,7 +45,6 @@ def create_account(request):
     Returns:
         HttpResponse: Formulário de cadastro ou redirecionamento
     """
-    # Exibe o formulário vazio na requisição GET
     if request.method == "GET":
         form = CustomUserCreationForm()
         return render(
@@ -58,11 +53,9 @@ def create_account(request):
             {"form": form}
         )
 
-    # Processa o formulário na requisição POST
     elif request.method == "POST":
         form = CustomUserCreationForm(request.POST)
 
-        # Se o formulário for válido, cria o usuário
         if form.is_valid():
             form.save()
             messages.success(
@@ -71,7 +64,6 @@ def create_account(request):
             )
             return redirect("/")
 
-        # Se houver erros, exibe mensagem e retorna o formulário
         messages.error(
             request,
             "Corrija os erros abaixo."
@@ -98,15 +90,12 @@ def login_view(request):
     Returns:
         HttpResponse: Formulário de login ou redirecionamento
     """
-    # Se já estiver autenticado, redireciona para home
     if request.user.is_authenticated:
         return redirect("home")
 
-    # Exibe o formulário na requisição GET
     if request.method == "GET":
         return render(request, "pages/index.html")
 
-    # Processa o login na requisição POST
     username = request.POST.get("username")
     password = request.POST.get("password")
     user = authenticate(
@@ -115,12 +104,10 @@ def login_view(request):
         password=password
     )
 
-    # Se a autenticação for bem-sucedida, faz login e redireciona
     if user is not None:
         login(request, user)
         return redirect("home")
     else:
-        # Se falhar, exibe mensagem de erro
         messages.error(
             request,
             "Usuário ou senha inválidos."

@@ -14,10 +14,6 @@ import os
 
 from django.core.asgi import get_asgi_application
 
-# Define o módulo de configurações do Django
-# Necessário antes de importar qualquer código Django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 
-# Aplicação ASGI exposta para o servidor
-# Esta variável é usada pelo servidor ASGI (ex: Uvicorn, Daphne)
 application = get_asgi_application()

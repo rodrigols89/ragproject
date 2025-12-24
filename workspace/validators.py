@@ -8,17 +8,10 @@ import os
 
 from django.core.exceptions import ValidationError
 
-# ============================================================================
-# CONSTANTES DE CONFIGURAÇÃO
-# ============================================================================
-
-# Tamanho máximo do arquivo em MB
 MAX_FILE_MB = 100
 
-# Tamanho máximo do arquivo em bytes
 MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024
 
-# Extensões de arquivo permitidas
 ALLOWED_EXTENSIONS = {
     ".pdf",
     ".txt",
@@ -30,15 +23,10 @@ ALLOWED_EXTENSIONS = {
     ".csv"
 }
 
-# Formato das extensões para mensagens de erro
 ALLOWED_FORMATTED = ", ".join(
     ext.upper() for ext in ALLOWED_EXTENSIONS
 )
 
-
-# ============================================================================
-# VALIDADORES DE ARQUIVO
-# ============================================================================
 
 def validate_file_type(uploaded_file):
     """
@@ -53,10 +41,8 @@ def validate_file_type(uploaded_file):
     Raises:
         ValidationError: Se a extensão não for permitida
     """
-    # Extrai extensão do nome do arquivo (em minúsculas)
     ext = os.path.splitext(uploaded_file.name)[1].lower()
 
-    # Verifica se a extensão está na lista permitida
     if ext not in ALLOWED_EXTENSIONS:
         msg = (
             f"Arquivo inválido: '{uploaded_file.name}'. "

@@ -11,4 +11,3 @@ TODO: Implementar testes para:
 - Autenticação social (Google, GitHub)
 - Validação de email único
 """
-# Create your tests here.

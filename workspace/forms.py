@@ -9,10 +9,6 @@ from django.core.exceptions import ValidationError
 
 from .models import File, Folder
 
-# ============================================================================
-# VALIDADORES CUSTOMIZADOS
-# ============================================================================
-
 
 def validate_file_size(value):
     """
@@ -24,7 +20,7 @@ def validate_file_size(value):
     Raises:
         ValidationError: Se o arquivo exceder o limite
     """
-    max_mb = 100  # Limite de 100 MB
+    max_mb = 100
     max_bytes = max_mb * 1024 * 1024
 
     if value.size > max_bytes:
@@ -32,10 +28,6 @@ def validate_file_size(value):
             f"O arquivo não pode ser maior que {max_mb} MB."
         )
 
-
-# ============================================================================
-# FORMULÁRIO DE PASTA
-# ============================================================================
 
 class FolderForm(forms.ModelForm):
     """
@@ -81,10 +73,6 @@ class FolderForm(forms.ModelForm):
         return name
 
 
-# ============================================================================
-# FORMULÁRIO DE ARQUIVO
-# ============================================================================
-
 class FileForm(forms.ModelForm):
     """
     Formulário para upload de arquivos.
@@ -113,7 +101,6 @@ class FileForm(forms.ModelForm):
             },
         }
 
-    # Adiciona validação de tamanho ao campo file
     file = forms.FileField(validators=[validate_file_size])
 
     def clean_name(self):
@@ -129,16 +116,11 @@ class FileForm(forms.ModelForm):
         name = self.cleaned_data.get("name")
         uploaded = self.cleaned_data.get("file")
 
-        # Se o usuário não informou o name, usa o filename
         if not name and uploaded:
             return uploaded.name
 
         return name
 
-
-# ============================================================================
-# FORMULÁRIO SIMPLIFICADO DE UPLOAD
-# ============================================================================
 
 class FileUploadForm(forms.ModelForm):
     """

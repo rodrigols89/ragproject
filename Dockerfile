@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     netcat-traditional \
     bash \
+    gosu \
     && rm -rf /var/lib/apt/lists/*
 
 # ===============================
@@ -38,7 +39,17 @@ COPY . /code/
 # Criar usuário não-root para segurança
 RUN adduser --disabled-password --no-create-home appuser && \
     chown -R appuser /code
-USER appuser
+
+# Copia e configura o entrypoint
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Define o entrypoint (roda como root para ajustar permissões)
+# O entrypoint vai mudar para appuser antes de executar o comando
+ENTRYPOINT ["/entrypoint.sh"]
+
+# Mantém como root no Dockerfile - o entrypoint gerencia a mudança de usuário
+# Isso permite que o entrypoint ajuste permissões antes de mudar para appuser
 
 # ===============================
 # 7️⃣ Porta exposta (Uvicorn usa 8000 por padrão)

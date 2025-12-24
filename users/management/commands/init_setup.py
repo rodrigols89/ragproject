@@ -24,10 +24,6 @@ from django.core.management.base import BaseCommand
 User = get_user_model()
 
 
-# ============================================================================
-# COMANDO DE CONFIGURAÇÃO INICIAL
-# ============================================================================
-
 class Command(BaseCommand):
     """
     Comando de gerenciamento para configuração inicial.
@@ -52,10 +48,6 @@ class Command(BaseCommand):
         self._setup_providers(site)
         self._setup_superuser()
 
-    # ========================================================================
-    # CONFIGURAÇÃO DO SITE
-    # ========================================================================
-
     def _setup_site(self):
         """
         Configura o Site do Django.
@@ -66,19 +58,16 @@ class Command(BaseCommand):
         Returns:
             Site: Objeto Site configurado
         """
-        # Obtém domínio do site das configurações ou variáveis de ambiente
         site_domain = (
             getattr(settings, "SITE_DOMAIN", None)
             or os.getenv("SITE_DOMAIN", "localhost:8000")
         )
 
-        # Obtém nome do site das configurações ou variáveis de ambiente
         site_name = (
             getattr(settings, "SITE_NAME", None)
             or os.getenv("SITE_NAME", "localhost")
         )
 
-        # Cria ou obtém o site (sempre com ID 1)
         site, created = Site.objects.get_or_create(
             id=1,
             defaults={
@@ -87,7 +76,6 @@ class Command(BaseCommand):
             },
         )
 
-        # Atualiza domínio e nome se mudaram
         if (
             site.domain != site_domain
             or site.name != site_name
@@ -109,10 +97,6 @@ class Command(BaseCommand):
 
         return site
 
-    # ========================================================================
-    # CONFIGURAÇÃO DE PROVEDORES OAUTH
-    # ========================================================================
-
     def _setup_providers(self, site):
         """
         Configura os provedores OAuth (Google e GitHub).
@@ -123,7 +107,6 @@ class Command(BaseCommand):
         Args:
             site: Objeto Site ao qual os provedores serão associados
         """
-        # Lista de provedores OAuth a serem configurados
         providers = [
             {
                 "provider": "google",
@@ -151,7 +134,6 @@ class Command(BaseCommand):
             },
         ]
 
-        # Configura cada provedor
         for provider in providers:
             self._setup_provider(provider, site)
 
@@ -166,7 +148,6 @@ class Command(BaseCommand):
             provider: Dicionário com informações do provedor
             site: Objeto Site ao qual o provedor será associado
         """
-        # Verifica se as credenciais estão definidas
         if not provider["client_id"] or not provider["secret"]:
             provider_name = provider['provider']
             client_id_status = (
@@ -181,7 +162,6 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING(msg))
             return
 
-        # Cria ou obtém o SocialApp para o provedor
         app, created = SocialApp.objects.get_or_create(
             provider=provider["provider"],
             defaults={
@@ -191,10 +171,8 @@ class Command(BaseCommand):
             },
         )
 
-        # Atualiza credenciais se necessário
         updated = self._update_provider_credentials(app, provider)
 
-        # Garante que o site está associado ao SocialApp
         if site not in app.sites.all():
             app.sites.add(site)
             self.stdout.write(
@@ -203,7 +181,6 @@ class Command(BaseCommand):
                 )
             )
 
-        # Mensagens de feedback
         if created:
             self.stdout.write(
                 self.style.SUCCESS(
@@ -233,17 +210,14 @@ class Command(BaseCommand):
         """
         updated = False
 
-        # Atualiza client_id se mudou
         if app.client_id != provider["client_id"]:
             app.client_id = provider["client_id"]
             updated = True
 
-        # Atualiza secret se mudou
         if app.secret != provider["secret"]:
             app.secret = provider["secret"]
             updated = True
 
-        # Salva se houve atualização
         if updated:
             app.save()
             provider_name = provider['name']
@@ -256,10 +230,6 @@ class Command(BaseCommand):
 
         return updated
 
-    # ========================================================================
-    # CONFIGURAÇÃO DO SUPERUSUÁRIO
-    # ========================================================================
-
     def _setup_superuser(self):
         """
         Cria ou atualiza o superusuário inicial.
@@ -267,19 +237,16 @@ class Command(BaseCommand):
         Lê as credenciais das variáveis de ambiente e cria ou
         atualiza o superusuário conforme necessário.
         """
-        # Obtém credenciais das variáveis de ambiente
         admin_username = os.getenv("DJANGO_SUPERUSER_USERNAME")
         admin_email = os.getenv("DJANGO_SUPERUSER_EMAIL")
         admin_password = os.getenv("DJANGO_SUPERUSER_PASSWORD")
 
-        # Cria ou atualiza o superusuário se as credenciais existirem
         if admin_username and admin_password:
             user_exists = User.objects.filter(
                 username=admin_username
             ).exists()
 
             if not user_exists:
-                # Cria novo superusuário
                 User.objects.create_superuser(
                     username=admin_username,
                     email=admin_email or "",
@@ -292,14 +259,12 @@ class Command(BaseCommand):
                     )
                 )
             else:
-                # Atualiza superusuário existente
                 self._update_superuser(
                     admin_username,
                     admin_email,
                     admin_password
                 )
         else:
-            # Avisa se as variáveis não estiverem definidas
             self.stdout.write(
                 self.style.WARNING(
                     "⚠️  Variáveis DJANGO_SUPERUSER_USERNAME e "
@@ -324,7 +289,6 @@ class Command(BaseCommand):
         user = User.objects.get(username=username)
         user.set_password(password)
 
-        # Atualiza email se fornecido
         if email:
             user.email = email
 

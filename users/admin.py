@@ -9,4 +9,3 @@ ou customizar a interface admin para usuários.
 TODO: Se necessário, registrar modelos customizados de usuário
 ou customizar a interface admin.
 """
-# Register your models here.

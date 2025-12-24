@@ -25,18 +25,14 @@ def main():
     Configura o módulo de settings e executa o comando solicitado
     através da linha de comando.
     """
-    # Define o módulo de configurações do Django
-    # Necessário antes de importar qualquer código Django
     os.environ.setdefault(
         "DJANGO_SETTINGS_MODULE",
         "core.settings"
     )
 
     try:
-        # Executa o comando solicitado
         execute_from_command_line(sys.argv)
     except ImportError as exc:
-        # Trata erro de importação do Django
         raise ImportError(
             "Couldn't import Django. Are you sure it's installed and "
             "available on your PYTHONPATH environment variable? Did you "

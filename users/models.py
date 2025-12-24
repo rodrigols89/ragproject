@@ -9,4 +9,3 @@ customizados de usuário no futuro.
 TODO: Se necessário, criar modelo de perfil de usuário ou estender
 o modelo User padrão do Django.
 """
-# Create your models here.

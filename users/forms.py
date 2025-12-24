@@ -9,10 +9,6 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 
-# ============================================================================
-# FORMULÁRIO DE CRIAÇÃO DE USUÁRIO
-# ============================================================================
-
 
 class CustomUserCreationForm(UserCreationForm):
     """
@@ -31,10 +27,8 @@ class CustomUserCreationForm(UserCreationForm):
         Define o modelo usado, campos exibidos, labels e mensagens
         de erro customizadas.
         """
-        # Modelo de usuário padrão do Django
         model = User
 
-        # Campos exibidos no formulário (na ordem especificada)
         fields = [
             "username",
             "email",
@@ -42,7 +36,6 @@ class CustomUserCreationForm(UserCreationForm):
             "password2"
         ]
 
-        # Labels traduzidos para português
         labels = {
             "username": "Usuário",
             "email": "Email",
@@ -50,7 +43,6 @@ class CustomUserCreationForm(UserCreationForm):
             "password2": "Confirmar Senha",
         }
 
-        # Mensagens de erro customizadas em português
         error_messages = {
             "username": {
                 "unique": "Já existe um usuário com este nome.",
@@ -76,7 +68,6 @@ class CustomUserCreationForm(UserCreationForm):
         """
         email = self.cleaned_data.get("email")
 
-        # Verifica se já existe um usuário com este email
         if User.objects.filter(email=email).exists():
             raise forms.ValidationError(
                 "Este e-mail já está cadastrado."

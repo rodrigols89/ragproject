@@ -12,4 +12,3 @@ TODO: Implementar testes para:
 - Movimentação de itens
 - Soft delete de pastas e arquivos
 """
-# Create your tests here.

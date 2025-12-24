@@ -15,10 +15,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-# Define o módulo de configurações do Django
-# Necessário antes de importar qualquer código Django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
 
-# Aplicação WSGI exposta para o servidor
-# Esta variável é usada pelo servidor WSGI (ex: Gunicorn, uWSGI)
 application = get_wsgi_application()
