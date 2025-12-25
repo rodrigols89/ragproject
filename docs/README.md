@@ -17,6 +17,19 @@
  - [`Configurando o Django para reconhecer o PostgreSQL (+ .env) como Banco de Dados`](#django-postgresql-settings)
  - [`Criando o docker compose para o container web`](#web-docker-compose)
  - [`Criando o container Nginx (nginx)`](#nginx-container)
+ - [`Criando App "users"`](#app-users)
+ - [`Criando a landing page da aplicação (base.html + index.html)`](#index-landing)
+ - [`Criando a página de cadastro (create-account.html + DB Commands)`](#create-account)
+ - [`Criando a sessão de login/logout + página home.html`](#session-home)
+ - [`Criando o login com Google e GitHub`](#login-google-github)
+ - [`Criando o app "workspace"`](#app-workspace)
+ - [`Mapeando a rota home/ com a workspace/`](#home-to-workspace)
+ - [`Modelando o workspace: Pastas (Folders) e Arquivos (Files)`](#folder-file)
+ - [`Customizando os formulários FolderForm e FileForm`](#workspace-forms)
+ - [`Atualizando a view (ação) para exibir as pastas e arquivos`](#update-view-to-list-folders-and-files)
+ - [`Criando a "Área Principal" dos templates /home.html e /workspace_home`](#main-area-home-workspace)
+ - [`Adicionando novas pastas (folders) com a view create_folder()`](#adding-new-folders)
+ - [`Implementando a inserção de arquivos`](#implement-insert-files)
 <!---
 [WHITESPACE RULES]
 - "40" Whitespace character.
@@ -2274,6 +2287,92 @@ Accept-Ranges: bytes
  - Vejam que quem está servindo os dados é o servidor Nginx e não o Django (container web).
  - Além, disso nós também estamos vendo algumas informações interessantes sobre os arquivos:
    - tipo: `text/css`, `text/plain`, `image/svg+xml`, etc.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+
+
+---
+
+<div id="app-users"></div>
+
+## `Criando App "users"`
+
+> Aqui nós vamos criar o App `users` que vai ser responsável por armazenar os dados dos nossos usuários no Banco de Dados.
+
+```bash
+python manage.py startapp users
+```
+
+[core/settings.py](../core/settings.py)
+```python
+INSTALLED_APPS = [
+    ...
+    'users',
+]
+```
+
+Para não esquecer vamos já relacionar as rotas do App `users` no nosso projeto `core/urls.py`:
+
+[core/urls.py](../core/urls.py)
+```python
+from django.contrib import admin
+from django.urls import include, path
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("", include("users.urls")),
+]
+```
 
 ---
 
