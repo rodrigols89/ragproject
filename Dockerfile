@@ -9,7 +9,8 @@ FROM python:3.12-slim
 WORKDIR /code
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONPATH=/code
 
 # ===============================
 # 3️⃣ Dependências do sistema

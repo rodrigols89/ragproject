@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+    <head>
+        <!-- ================================================================== -->
+        <!-- METADADOS E CONFIGURAÇÕES BÁSICAS                                -->
+        <!-- ================================================================== -->
+        
+        <!-- Codificação de caracteres UTF-8 -->
+        <meta charset="UTF-8">
+        
+        <!-- Viewport para responsividade em dispositivos móveis -->
+        <meta name="viewport" 
+              content="width=device-width, initial-scale=1.0">
+        
+        <!-- Título da página (pode ser sobrescrito por templates filhos) -->
+        <title>
+            {% block title %}RAG Project{% endblock title %}
+        </title>
+        
+        <!-- ================================================================== -->
+        <!-- FRAMEWORKS E BIBLIOTECAS EXTERNAS                                -->
+        <!-- ================================================================== -->
+        
+        <!-- Tailwind CSS via CDN (versão browser) -->
+        <!-- Fornece utilitários de CSS para estilização rápida -->
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4">
+        </script>
+        
+        <!-- ================================================================== -->
+        <!-- BLOCOS CUSTOMIZÁVEIS                                             -->
+        <!-- ================================================================== -->
+        
+        <!-- Bloco para adicionar elementos no <head> (CSS, meta tags, etc) -->
+        {% block head %}{% endblock head %}
+    </head>
+    <body class="min-h-screen bg-[#343541]">
+        <!-- ================================================================== -->
+        <!-- CONTEÚDO PRINCIPAL                                                -->
+        <!-- ================================================================== -->
+        
+        <!-- Bloco principal de conteúdo da página -->
+        <!-- Deve ser preenchido pelos templates filhos -->
+        {% block content %}{% endblock content %}
+        
+        <!-- ================================================================== -->
+        <!-- SCRIPTS JAVASCRIPT                                                -->
+        <!-- ================================================================== -->
+        
+        <!-- Bloco para adicionar scripts JavaScript no final do body -->
+        <!-- Colocar scripts no final melhora o tempo de carregamento -->
+        {% block scripts %}{% endblock scripts %}
+    </body>
+</html>

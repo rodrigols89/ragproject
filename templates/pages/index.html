@@ -1,0 +1,204 @@
+<!--
+    Template da página inicial (login).
+
+    Esta página exibe um formulário de login com suporte a:
+    - Login tradicional (username/password)
+    - Login social via Google e GitHub
+    - Link para criação de nova conta
+
+    Utiliza Tailwind CSS para estilização e django-allauth
+    para autenticação social.
+-->
+{% extends "base.html" %}
+
+{% block content %}
+
+    <!-- ==================================================================== -->
+    <!-- CONTEÚDO PRINCIPAL - ÁREA DE LOGIN                                  -->
+    <!-- ==================================================================== -->
+    
+    <main class="min-h-screen flex items-center justify-center py-12 
+                 px-4 sm:px-6 lg:px-8">
+        
+        <!-- ================================================================ -->
+        <!-- CARD DE LOGIN                                                  -->
+        <!-- ================================================================ -->
+        
+        <div class="max-w-md w-full space-y-8 bg-white py-8 px-6 shadow 
+                    rounded-lg">
+            
+            <!-- ============================================================ -->
+            <!-- CABEÇALHO - LOGO E TÍTULO                                   -->
+            <!-- ============================================================ -->
+            
+            <div class="mb-6 text-center">
+                <h2 class="mt-4 text-2xl font-semibold text-gray-900">
+                    RAG Project
+                </h2>
+                <p class="mt-1 text-sm text-gray-500">
+                    Faça login para acessar seu painel
+                </p>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- MENSAGENS DO SISTEMA                                        -->
+            <!-- ============================================================ -->
+            
+            <!-- Exibe mensagens de erro ou sucesso do Django -->
+            {% if messages %}
+                <div class="mb-4">
+                    {% for message in messages %}
+                        <div class="text-red-600 bg-red-100 
+                                    border border-red-200 rounded-md 
+                                    px-4 py-2 text-sm">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            <!-- ============================================================ -->
+            <!-- FORMULÁRIO DE LOGIN TRADICIONAL                             -->
+            <!-- ============================================================ -->
+            
+            <form method="post" action="" class="space-y-6">
+                <!-- Token CSRF para proteção contra ataques -->
+                {% csrf_token %}
+
+                <!-- Campo de Username -->
+                <div>
+                    <label for="username" 
+                           class="block text-sm font-medium 
+                                  text-gray-700">
+                        Usuário
+                    </label>
+                    <div class="mt-1">
+                        <input
+                            id="username"
+                            name="username"
+                            type="text"
+                            autocomplete="username"
+                            required
+                            class="appearance-none block w-full px-3 
+                                   py-2 border border-gray-300 
+                                   rounded-md shadow-sm 
+                                   placeholder-gray-400 
+                                   focus:outline-none focus:ring-2 
+                                   focus:ring-blue-500 
+                                   focus:border-blue-500 sm:text-sm">
+                    </div>
+                </div>
+
+                <!-- Campo de Senha -->
+                <div>
+                    <label for="password" 
+                           class="block text-sm font-medium 
+                                  text-gray-700">
+                        Senha
+                    </label>
+                    <div class="mt-1">
+                        <input
+                            id="password"
+                            name="password"
+                            type="password"
+                            autocomplete="current-password"
+                            required
+                            class="appearance-none block w-full px-3 
+                                   py-2 border border-gray-300 
+                                   rounded-md shadow-sm 
+                                   placeholder-gray-400 
+                                   focus:outline-none focus:ring-2 
+                                   focus:ring-blue-500 
+                                   focus:border-blue-500 sm:text-sm">
+                    </div>
+                </div>
+
+                <!-- Botão de Submit -->
+                <div>
+                    <button type="submit"
+                            class="w-full flex justify-center py-2 px-4 
+                                   border border-transparent 
+                                   rounded-md shadow-sm 
+                                   text-sm font-medium 
+                                   text-white bg-blue-600 
+                                   hover:bg-blue-700 
+                                   focus:outline-none focus:ring-2 
+                                   focus:ring-offset-2 
+                                   focus:ring-blue-500">
+                        Entrar
+                    </button>
+                </div>
+            </form>
+
+            <!-- ============================================================ -->
+            <!-- DIVISOR - SEPARADOR ENTRE LOGIN TRADICIONAL E SOCIAL        -->
+            <!-- ============================================================ -->
+            
+            <div class="mt-6 relative">
+                <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-gray-200"></div>
+                </div>
+                <div class="relative flex justify-center text-sm">
+                    <span class="bg-white px-2 text-gray-500">
+                        ou continuar com
+                    </span>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- BOTÕES DE LOGIN SOCIAL                                       -->
+            <!-- ============================================================ -->
+            
+            <!-- Grid com dois botões lado a lado (Google e GitHub) -->
+            <div class="mt-6 grid grid-cols-2 gap-3">
+                
+                <!-- Botão de Login com Google -->
+                <div>
+                    <a href=""
+                       class="w-full inline-flex justify-center 
+                              items-center py-2 px-4 border 
+                              border-gray-300 rounded-md 
+                              shadow-sm bg-white hover:bg-gray-50">
+                        <!-- Ícone do Google -->
+                        {% include "icons/google.svg.html" %}
+                        <span class="text-sm font-medium 
+                                     text-gray-700">
+                            Google
+                        </span>
+                    </a>
+                </div>
+
+                <!-- Botão de Login com GitHub -->
+                <div>
+                    <a href=""
+                       class="w-full inline-flex justify-center 
+                              items-center py-2 px-4 border 
+                              border-gray-300 rounded-md 
+                              shadow-sm bg-white hover:bg-gray-50">
+                        <!-- Ícone do GitHub -->
+                        {% include "icons/github.svg.html" %}
+                        <span class="text-sm font-medium 
+                                     text-gray-700">
+                            GitHub
+                        </span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- ============================================================ -->
+            <!-- RODAPÉ - LINK PARA CADASTRO                                 -->
+            <!-- ============================================================ -->
+            
+            <p class="mt-6 text-center text-sm text-gray-600">
+                Não tem conta?
+                <a href="" 
+                   class="font-medium text-blue-600 
+                          hover:text-blue-700">
+                    Cadastrar
+                </a>
+            </p>
+
+        </div>
+
+    </main>
+{% endblock %}
