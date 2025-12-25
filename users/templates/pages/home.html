@@ -1,0 +1,37 @@
+<!--
+    Template da página home (área logada).
+
+    Esta página é exibida após o usuário fazer login e contém:
+    - Sidebar com navegação e opção de logout
+    - Área principal com mensagem de boas-vindas
+
+    Requer autenticação para acessar (decorator @login_required).
+-->
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+    <div class="flex h-screen bg-gray-100">
+
+        <!-- ================================================================ -->
+        <!-- SIDEBAR - NAVEGAÇÃO E LOGOUT                                   -->
+        <!-- ================================================================ -->
+        
+        {% include "partials/sidebar.html" with current_page="home" %}
+
+        <!-- ================================================================ -->
+        <!-- ÁREA PRINCIPAL - CONTEÚDO DA PÁGINA HOME                        -->
+        <!-- ================================================================ -->
+        
+        <main class="flex-1 p-8 overflow-y-auto">
+            <!-- Cabeçalho com mensagem de boas-vindas -->
+            <header class="bg-white shadow px-6 py-4">
+                <h1 class="text-2xl font-semibold text-gray-800">
+                    Bem-vindo, {{ request.user.username }}!
+                </h1>
+            </header>
+        </main>
+
+    </div>
+{% endblock %}
