@@ -1,0 +1,71 @@
+services:
+  db:
+    image: postgres:15
+    container_name: postgresql
+    restart: always
+    env_file: .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+  redis:
+    image: redis:7
+    container_name: redis_cache
+    restart: always
+    env_file: .env
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: django
+    restart: always
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: core.settings
+    command: >
+      sh -c "
+      until nc -z ${POSTGRES_HOST} ${POSTGRES_PORT}; do
+        echo '⏳ Waiting for Postgres...';
+        sleep 2;
+      done &&
+      python manage.py migrate &&
+      python manage.py collectstatic --noinput &&
+      python manage.py runserver ${DJANGO_HOST:-0.0.0.0}:${DJANGO_PORT:-8000}
+      "
+    volumes:
+      - .:/code
+      - ./static:/code/staticfiles
+      - ./media:/code/media
+    depends_on:
+      - db
+      - redis
+    expose:
+      - "8000"
+    networks:
+      - backend
+  nginx:
+    image: nginx:1.27
+    container_name: nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./static:/code/staticfiles
+      - ./media:/code/media
+    depends_on:
+      - web
+    networks:
+      - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  backend:

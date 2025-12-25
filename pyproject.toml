@@ -8,6 +8,10 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.12,<4.0"
 dependencies = [
+    "django (>=6.0,<7.0)",
+    "uvicorn (>=0.40.0,<0.41.0)",
+    "python-dotenv (>=1.2.1,<2.0.0)",
+    "psycopg2-binary (>=2.9.11,<3.0.0)"
 ]
 
 
@@ -22,6 +26,7 @@ pytest-cov = "^7.0.0"
 ################### ( Ruff Settings ) ####################
 taskipy = "^1.14.1"
 pre-commit = "^4.5.1"
+pytest-django = "^4.11.1"
 
 [tool.ruff]
 line-length = 79
@@ -41,7 +46,12 @@ select = ['I', 'F', 'E', 'W', 'PL', 'PT']
 
 [tool.pytest.ini_options]
 pythonpath = "."
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 addopts = '-p no:warnings'
+DJANGO_SETTINGS_MODULE = "core.settings"
 
 
 ################## ( Taskipy Settings ) ##################
@@ -50,18 +60,42 @@ addopts = '-p no:warnings'
 # ----------------------- ( Linting ) -----------------------
 pre_lint = 'ruff check --fix'
 lint = 'ruff check'
+# ----------------------- ( Testing ) -----------------------
+pre_test = 'task lint'
+test = 'pytest -s -x --cov=. -vv'
+post_test = 'coverage html'
 # --------------------- ( pre-commit ) ----------------------
 precommit = 'pre-commit run --all-files'
 # ------------------ ( Project Management ) -----------------
 localserver = 'python manage.py runserver'
 killserver = 'sudo kill -9 $(sudo lsof -t -i:8000)'  # Kill service/port 8000
+createuser = 'docker compose exec web python manage.py createsuperuser'
+migrate = 'docker compose exec web python manage.py migrate'
+makemigrations = 'docker compose exec web python manage.py makemigrations'
 addpermissions = """
 sudo chown -R 1000:1000 ./static ./media ./staticfiles || true &&
 sudo chmod -R 755 ./static ./media ./staticfiles
 """
-
+# ------------------ ( Docker Management ) ------------------
+start_compose = 'docker compose up -d'
+restart_compose = 'docker restart $(docker ps -q)'
+build_compose = 'docker compose up --build -d'
+clean_compose = """
+docker stop $(docker ps -aq) 2>/dev/null || true &&
+docker rm $(docker ps -aq) 2>/dev/null || true &&
+docker rmi -f $(docker images -aq) 2>/dev/null || true &&
+docker volume rm $(docker volume ls -q) 2>/dev/null || true &&
+docker system prune -a --volumes -f
+"""
+# --------------------- ( Docker Exec ) ---------------------
+opendb = 'docker exec -it postgresql psql -U raguser -d rag_db'
+openweb = 'docker exec -it django bash'
+opennginx = 'docker exec -it nginx bash'
+openredis = 'docker exec -it redis bash'
+# -------------------- ( Poetry Exports ) -------------------
+exportdev = 'poetry export --without-hashes --with dev --format=requirements.txt --output=requirements-dev.txt'
+exportprod = 'poetry export --without-hashes --format=requirements.txt --output=requirements.txt'
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
-
