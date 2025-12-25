@@ -473,12 +473,16 @@ repos:
         entry: task test
         language: system
         types: [python]
+        pass_filenames: false
+        exclude: ^(core/settings\.py)
 
       - id: pytest-coverage
         name: pytest coverage
         entry: task post_test
         language: system
         types: [python]
+        pass_filenames: false
+        exclude: ^(core/settings\.py)
 ```
 
 Agora nós precisamos instalar o pre-commit:
