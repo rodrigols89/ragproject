@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}Workspace{% endblock %}
+
+{% block content %}
+    <div class="flex h-screen bg-gray-100">
+
+        <!-- 🧱 Sidebar -->
+        {% include "partials/sidebar.html" with current_page="workspace" %}
+
+    </div>
+{% endblock %}

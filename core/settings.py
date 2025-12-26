@@ -42,6 +42,7 @@ INSTALLED_APPS = [
 
     # Seus apps
     "users",
+    "workspace",
 ]
 
 MIDDLEWARE = [
