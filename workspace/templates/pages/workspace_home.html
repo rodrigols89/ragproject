@@ -8,5 +8,116 @@
         <!-- 🧱 Sidebar -->
         {% include "partials/sidebar.html" with current_page="workspace" %}
 
+        <!-- 💼 Área principal do Workspace -->
+        <main class="flex-1 p-8 overflow-y-auto">
+
+            <!-- Header -->
+            <header class="bg-white shadow px-6 py-4">
+                <h1 class="text-2xl font-semibold text-gray-800">
+                    Bem-vindo, {{ request.user.username }}!
+                </h1>
+            </header>
+
+
+            <!-- 🧭 Breadcrumbs -->
+            <nav class="text-sm text-gray-600 my-4 flex items-center
+                space-x-2">
+
+                {% if current_folder %}
+
+                    {% if breadcrumbs|length > 1 %}
+                        {% with prev_folder=breadcrumbs|slice:"-2:-1"|first %}
+                            <a href="?folder={{ prev_folder.id }}"
+                               class="text-blue-600 hover:underline
+                                   breadcrumb-drop"
+                               data-folder-id="{{ prev_folder.id }}">
+                                ← Voltar</a>
+                        {% endwith %}
+                    {% else %}
+                        <a href="{% url 'workspace_home' %}"
+                           class="text-blue-600 hover:underline
+                               breadcrumb-drop"
+                           data-folder-id="">← Voltar à raiz</a>
+                    {% endif %}
+
+                    <span>/</span>
+
+                    <a href="{% url 'workspace_home' %}"
+                       class="hover:underline breadcrumb-drop"
+                       data-folder-id="">📁 Raiz</a>
+
+                    <span>/</span>
+
+                    {% for folder in breadcrumbs %}
+                        {% if not forloop.last %}
+                            <a href="?folder={{ folder.id }}"
+                               class="hover:underline breadcrumb-drop"
+                               data-folder-id="{{ folder.id }}">
+                                {{ folder.name }}</a>
+                            <span>/</span>
+                        {% else %}
+                            <span class="font-semibold breadcrumb-drop"
+                                  data-folder-id="{{ folder.id }}">
+                                {{ folder.name }}
+                            </span>
+                        {% endif %}
+                    {% endfor %}
+
+                {% else %}
+                    <span class="text-gray-400 italic breadcrumb-drop"
+                          data-folder-id="">
+                        📁 Raiz
+                    </span>
+                {% endif %}
+
+            </nav>
+
+
+            <!-- 📁 Listagem mista de pastas e arquivos -->
+            {% if folders or files %}
+                <ul class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4
+                    gap-4">
+
+                    <!-- Pastas -->
+                    {% for folder in folders %}
+                        <li class="bg-white border rounded-lg p-4
+                            hover:shadow-md transition cursor-pointer">
+                            <a href="?folder={{ folder.id }}" class="block">
+                                <span class="text-gray-800 font-semibold
+                                    flex items-center space-x-2">
+                                    <span>📁</span>
+                                    <span>{{ folder.name }}</span>
+                                </span>
+                            </a>
+                        </li>
+                    {% endfor %}
+
+                    <!-- Arquivos -->
+                    {% for file in files %}
+                        <li class="bg-white border rounded-lg p-4
+                            hover:shadow-md transition">
+                            <a href="{{ file.file.url }}" target="_blank"
+                               class="block">
+                                <span class="text-gray-800 font-semibold
+                                    flex items-center space-x-2">
+                                    <span>📄</span>
+                                    <span>{{ file.name }}</span>
+                                </span>
+                                <p class="text-xs text-gray-500">
+                                    Enviado em
+                                    {{ file.uploaded_at|date:"d/m/Y H:i" }}
+                                </p>
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="pt-4 text-gray-500 italic">
+                    Nenhum item encontrado neste diretório.
+                </p>
+            {% endif %}
+
+
+        </main>
     </div>
 {% endblock %}
