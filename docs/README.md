@@ -21,7 +21,15 @@
  - [`Criando a landing page da aplicação (base.html + index.html)`](#landing-page)
  - [`Criando a página de cadastro (create-account.html + DB Commands)`](#create-account)
  - [`Criando a sessão de login/logout + página home.html`](#session-home)
- - [`Criando o login com Google e GitHub`](#login-google-github)
+ - [`Instalando e preparando o django-allauth para fazer logins sociais`](#install-django-allauth)
+ - [`Pegando as credenciais (chaves) do Google e GitHub`](#google-github-credentials)
+ - [`Criando um super usuário e logins sociais automaticamente`](#auto-super-user-and-social-logins)
+ - [`Linkando os botões de login social`](#linking-social-buttons)
+ - [`Reescrevendo as mensagens do Django Allauth`](#rewriting-allauth-messages)
+
+
+
+<!---
  - [`Criando o app "workspace"`](#app-workspace)
  - [`Mapeando a rota home/ com a workspace/`](#home-to-workspace)
  - [`Modelando o workspace: Pastas (Folders) e Arquivos (Files)`](#folder-file)
@@ -30,6 +38,8 @@
  - [`Criando a "Área Principal" dos templates /home.html e /workspace_home`](#main-area-home-workspace)
  - [`Adicionando novas pastas (folders) com a view create_folder()`](#adding-new-folders)
  - [`Implementando a inserção de arquivos`](#implement-insert-files)
+--->
+
 <!---
 [WHITESPACE RULES]
 - "40" Whitespace character.
@@ -3713,6 +3723,1271 @@ Primeiro nós precisamos setar a url/link no nosso [index.html](../templates/pag
 
 > **NOTE:**  
 > No nosso exemplo só faltava definir o tipo de *método* no formulário que no nosso caso era `POST`.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="install-django-allauth"></div>
+
+## `Instalando e preparando o django-allauth para fazer logins sociais`
+
+#### Instalando e Configurando a biblioteca django-allauth
+
+> Aqui nós vamos instalar e configurar o `django-allauth`, que é uma biblioteca pronta para adicionar *autenticação social (OAuth)* e *funcionalidades de conta (login, logout, registro, verificação de e-mail)* ao nosso projeto Django.
+
+Vamos começar instalando as dependências e a biblioteca `django-allauth`:
+
+```bash
+poetry add PyJWT@latest
+```
+
+```bash
+poetry add cryptography@latest
+```
+
+```bash
+poetry add requests@latest
+```
+
+```bash
+poetry add django-allauth@latest
+```
+
+Novamente, lembre-se de importar essas bibliotecas para os nossos `requirements.txt`:
+
+```bash
+task exportdev
+```
+
+```bash
+task exportprod
+```
+
+Agora nós precisamos refletir essas alterações no nosso container:
+
+```bash
+task build_compose
+```
+
+Agora vamos adicionar os *Apps* e *Middlewares* `django-allauth` necessários no `settings.py`:
+
+[core/settings.py](../core/settings.py)
+```python
+INSTALLED_APPS = [
+    # Apps padrão do Django
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+
+    # Obrigatório pro allauth
+    "django.contrib.sites",
+
+    # Apps principais do allauth
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+
+    # Provedores de login social
+    "allauth.socialaccount.providers.google",  # 👈 habilita login com Google
+    "allauth.socialaccount.providers.github",  # 👈 habilita login com GitHub
+
+    # Seus apps
+    "users",
+]
+
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+
+    # ✅ Novo middleware exigido pelo Django Allauth
+    'allauth.account.middleware.AccountMiddleware',
+
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+```
+
+ - `django.contrib.sites`
+   - App do Django que permite associar configurações a um Site (domínio) — o allauth usa isso para saber qual domínio/URL usar para callbacks OAuth.
+   - Você precisará criar/ajustar um Site no admin (ou via fixtures) com SITE_ID = 1 (ver mais abaixo).
+ - `allauth, allauth.account, allauth.socialaccount`
+   - `allauth` é o pacote principal;
+   - `account` fornece funcionalidade de conta (registro, login local, confirmação de e-mail);
+   - `socialaccount` é a camada que integra provedores OAuth (Google, GitHub, etc.).
+ - `allauth.socialaccount.providers.google, allauth.socialaccount.providers.github`
+   - Provedores prontos do allauth — carregam os adaptadores e rotas específicas para cada provedor.
+   - Adicione apenas os provedores que você pretende suportar (pode ativar mais tarde).
+
+Agora nós vamos adicionar `context_processors.request` e configurar `AUTHENTICATION_BACKENDS` (`settings.py`):
+
+[core/settings.py](../core/settings.py)
+```python
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [BASE_DIR / 'templates'],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',  # <- Necessário para allauth
+                'django.contrib.auth.context_processors.auth',
+                'django.template.context_processors.media',
+                'django.template.context_processors.static',
+                'django.template.context_processors.tz',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+
+# AUTHENTICATION_BACKENDS — combine o backend padrão com o do allauth
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",            # Seu login normal
+    "allauth.account.auth_backends.AuthenticationBackend",  # Login social
+]
+```
+
+Outras configurações importantes no `settings.py` são as seguintes:
+
+[core/settings.py](../core/settings.py)
+```python
+SITE_ID = int(os.getenv("DJANGO_SITE_ID", 1))
+LOGIN_REDIRECT_URL = "/home/"
+LOGOUT_REDIRECT_URL = "/"
+ACCOUNT_LOGIN_METHODS = {"username"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]
+ACCOUNT_EMAIL_VERIFICATION = "optional"
+```
+
+ - `SITE_ID = int(os.getenv("DJANGO_SITE_ID", 1))`
+   - **O que é?**
+     - Faz parte do framework `django.contrib.sites`
+     - Identifica qual *“site”* está ativo no projeto
+   - **Por que existe?**
+     - O Django permite que um mesmo projeto sirva vários sites/domínios, por exemplo:
+       - ID - Domínio
+       - 1 - localhost
+       - 2 - example.com
+   - **O SITE_ID = 1 diz:**
+     - *“Use o site com ID 1 da tabela django_site”*
+ - `LOGIN_REDIRECT_URL = "/home/"`
+   - **O que faz?**
+     - URL para onde o usuário é redirecionado após login bem-sucedido.
+ - `LOGOUT_REDIRECT_URL = "/"`
+   - **O que faz?**
+     - URL para onde o usuário vai após logout.
+ - `ACCOUNT_LOGIN_METHODS = {"username"}`
+   - **O que faz?**
+     - Define como o usuário pode fazer login
+     - `"username"` -> Login só com username.
+     - `"email"` -> Login só com email.
+     - `"username_email"` -> Aceita os dois.
+   - **nosso caso caso:**
+     - `{"username"}`
+     - ➡️ O usuário só pode logar usando username.
+     - ❌ Email não é aceito para login.
+ - `ACCOUNT_SIGNUP_FIELDS = ["email*", "username*", "password1*", "password2*"]`
+   - **O que faz?**
+     - Define quais campos aparecem no cadastro e se são obrigatórios.
+     - O `*` significa 👉 Campo obrigatório
+ - `ACCOUNT_EMAIL_VERIFICATION = "optional"`
+   - **O que faz?**
+     - Define se o email precisa ser confirmado ou não.
+     - `"mandatory"` -> Usuário **não pode logar** sem confirmar email.
+     - `"optional"` -> Email pode ser confirmado depois.
+     - `"none"` -> Nenhuma verificação.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="google-github-credentials"></div>
+
+## `Pegando as credenciais (chaves) do Google e GitHub`
+
+### Como pegar as credenciais (chaves) do Google
+
+ - **Etapas no Console do Google:**
+   - Acesse https://console.cloud.google.com/
+   - Faça login e crie um novo projeto (ex: Easy RAG Auth).
+   - No menu lateral, vá em:
+     - APIs e serviços → Credenciais → Criar credenciais → ID do cliente OAuth 2.0
+   - Clique no botão “Configure consent screen”
+     - Clique em `Get started`
+     - **Em App Information:**
+       - `App name:`
+         - Easy RAG
+         - Esse nome aparecerá para o usuário quando ele for fazer login pelo Google.
+       - `User support email:`
+         - Selecione seu e-mail pessoal (ele aparece automaticamente no menu).
+         - É usado pelo Google caso o usuário queira contato sobre privacidade.
+       - Cli quem `next`
+     - **Em Audience:**
+       - Aqui o Google vai perguntar quem pode usar o aplicativo.
+       - ✅ External (Externo):
+         - Isso significa que qualquer usuário com uma conta Google poderá fazer login (ótimo para ambiente de testes e produção pública).
+     - **Contact Information:**
+       - O campo será algo como:
+         - Developer contact email:
+           - Digite novamente o mesmo e-mail (ex: seuemail@gmail.com)
+         - Esse é o contato para eventuais notificações do Google sobre a aplicação.
+     - **Finish:**
+       - Revise as informações e clique em Create (botão azul no canto inferior esquerdo).
+       - Isso cria oficialmente a tela de consentimento OAuth.
+
+**✅ Depois que criar**
+
+Você será redirecionado automaticamente para o painel de `OAuth consent screen`. De lá, basta voltar:
+
+ - Ao menu lateral → APIs & Services → Credentials;
+ - e aí sim o botão `+ Create credentials` → `OAuth client ID` ficará habilitado.
+
+Agora escolha:
+
+ - **Tipo de aplicativo:**
+   - Aplicativo da Web
+ - **Nome:**
+   - Easy RAG - Django
+ - **Em URIs autorizados de redirecionamento, adicione:**
+   - http://localhost:8000/accounts/google/login/callback/
+        - Se você também utilizar Django em um container: http://localhost/accounts/google/login/callback/
+ - **Clique em Criar**
+ - Copie o `Client ID` e o `Client Secret`
+
+> **NOTE:**  
+> Essas *informações (Client ID e Secret)* serão configuradas no admin do Django, não diretamente no código.
+
+---
+
+### Como pegar as credenciais (chaves) do GitHub
+
+ - Vá em https://github.com/settings/developers
+ - Clique em OAuth Apps → New OAuth App
+ - Preencha:
+   - *Application name:* Easy RAG
+   - *Homepage URL:* http://localhost:8000
+   - *Authorization callback URL:* http://localhost:8000/accounts/github/login/callback/
+ - Clique em `Register Application`
+ - Copie o `Client ID`
+ - Clique em `Generate new client secret` e copie o `Client Secret`
+
+---
+
+### Adicionando essas credenciais nas variáveis de ambiente (.env)
+
+Tem como utilizar essas credenciais (chaves) diretamente no Django Admin, mas toda vez fazer esse trabalho manualmente pode ser chato.
+
+Uma alternativa é criar essas credenciais (chaves) nas variáveis de ambiente e usa-las na hora de inicialização do projeto (ou seja, quando o container for criado):
+
+[.env](../.env)
+```bash
+GOOGLE_CLIENT_ID=seu_google_client_id_aqui
+GOOGLE_CLIENT_SECRET=seu_google_client_secret_aqui
+
+GITHUB_CLIENT_ID=seu_github_client_id_aqui
+GITHUB_CLIENT_SECRET=seu_github_client_secret_aqui
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="auto-super-user-and-social-logins"></div>
+
+## `Criando um super usuário e logins sociais automaticamente`
+
+Agora nós vamos implementar alguns script e alterações no nosso código para assim que ele subir nosso container web ele **crie um super usuário** e **configure logins sociais automaticamente**.
+
+De início vamos modificar o nosso [docker-compose.yml](../docker-compose.yml) para não ter aqueles comandos de inicialização:
+
+**ANTES:** [docker-compose.yml](../docker-compose.yml)
+```yml
+command: >
+  sh -c "
+  until nc -z ${POSTGRES_HOST} ${POSTGRES_PORT}; do
+    echo '⏳ Waiting for Postgres...';
+    sleep 2;
+  done &&
+  python manage.py migrate &&
+  python manage.py collectstatic --noinput &&
+  python manage.py runserver ${DJANGO_HOST:-0.0.0.0}:${DJANGO_PORT:-8000}
+  "
+```
+
+**AGORA:** [docker-compose.yml](../docker-compose.yml)
+```yml
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: django
+    restart: always
+    env_file: .env
+    environment:
+      DJANGO_SETTINGS_MODULE: core.settings
+    volumes:
+      - .:/code
+      - ./static:/code/staticfiles
+      - ./media:/code/media
+    depends_on:
+      - db
+      - redis
+    expose:
+      - "8000"
+    networks:
+      - backend
+
+networks:
+  backend:
+```
+
+[entrypoint.sh](../entrypoint.sh)
+```bash
+#!/bin/bash
+set -e
+
+# ============================================================================
+# Configuração de diretórios e permissões
+# ============================================================================
+
+setup_directories() {
+    # Cria diretórios necessários se não existirem
+    mkdir -p /code/media /code/staticfiles
+
+    # Ajusta permissões e ownership dos diretórios
+    # Garante que o usuário appuser (UID 1000) possa escrever neles
+    chmod -R 755 /code/media /code/staticfiles
+
+    # Obtém o UID do appuser (geralmente 1000)
+    APPUSER_UID=$(id -u appuser 2>/dev/null || echo "1000")
+    APPUSER_GID=$(id -g appuser 2>/dev/null || echo "1000")
+
+    # Ajusta ownership se estiver rodando como root
+    if [ "$(id -u)" = "0" ]; then
+        chown -R ${APPUSER_UID}:${APPUSER_GID} \
+            /code/media /code/staticfiles 2>/dev/null || true
+    fi
+}
+
+# ============================================================================
+# Funções de inicialização do Django
+# ============================================================================
+
+wait_for_postgres() {
+    # Aguarda o PostgreSQL estar pronto
+    until nc -z ${POSTGRES_HOST} ${POSTGRES_PORT}; do
+        echo '⏳ Waiting for Postgres...'
+        sleep 2
+    done
+    echo '✅ Postgres is ready!'
+}
+
+run_migrations() {
+    echo '🔄 Running migrations...'
+    python manage.py migrate
+}
+
+collect_static_files() {
+    echo '📦 Collecting static files...'
+    python manage.py collectstatic --noinput
+}
+
+create_superuser() {
+    echo '👤 Checking for superuser...'
+    if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && \
+       [ -n "$DJANGO_SUPERUSER_EMAIL" ] && \
+       [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then
+        python manage.py shell << PYEOF
+from django.contrib.auth import get_user_model
+User = get_user_model()
+if not User.objects.filter(
+    username="${DJANGO_SUPERUSER_USERNAME}"
+).exists():
+    User.objects.create_superuser(
+        "${DJANGO_SUPERUSER_USERNAME}",
+        "${DJANGO_SUPERUSER_EMAIL}",
+        "${DJANGO_SUPERUSER_PASSWORD}"
+    )
+    print("✅ Superuser created successfully!")
+else:
+    print("ℹ️  Superuser already exists, skipping creation.")
+PYEOF
+    else
+        echo '⚠️  Superuser environment variables not set, ' \
+             'skipping superuser creation.'
+    fi
+}
+
+setup_social_providers() {
+    echo '🔐 Setting up social providers...'
+    python manage.py setup_social_providers
+}
+
+start_django_server() {
+    echo '🚀 Starting Django server...'
+    exec python manage.py runserver \
+        ${DJANGO_HOST:-0.0.0.0}:${DJANGO_PORT:-8000}
+}
+
+# ============================================================================
+# Inicialização completa do Django
+# ============================================================================
+
+init_django() {
+    wait_for_postgres
+    run_migrations
+    collect_static_files
+    create_superuser
+    setup_social_providers
+    start_django_server
+}
+
+# ============================================================================
+# Script principal
+# ============================================================================
+
+main() {
+    # Configura diretórios e permissões
+    setup_directories
+
+    # Se estiver rodando como root
+    if [ "$(id -u)" = "0" ]; then
+        # Se não houver comando passado ou se for o comando padrão/bash,
+        # executa inicialização completa
+        if [ $# -eq 0 ] || [ "$1" = "bash" ]; then
+            # Executa a inicialização como appuser usando heredoc
+            # para preservar o contexto das funções
+            exec gosu appuser bash << 'INIT_SCRIPT'
+set -e
+
+# Aguarda o PostgreSQL estar pronto
+until nc -z ${POSTGRES_HOST} ${POSTGRES_PORT}; do
+  echo '⏳ Waiting for Postgres...'
+  sleep 2
+done
+
+echo '✅ Postgres is ready!'
+
+# Executa migrations
+echo '🔄 Running migrations...'
+python manage.py migrate
+
+# Coleta arquivos estáticos
+echo '📦 Collecting static files...'
+python manage.py collectstatic --noinput
+
+# Cria super usuário se não existir
+echo '👤 Checking for superuser...'
+if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && \
+   [ -n "$DJANGO_SUPERUSER_EMAIL" ] && \
+   [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then
+  python manage.py shell << PYEOF
+from django.contrib.auth import get_user_model
+User = get_user_model()
+if not User.objects.filter(
+    username="${DJANGO_SUPERUSER_USERNAME}"
+).exists():
+    User.objects.create_superuser(
+        "${DJANGO_SUPERUSER_USERNAME}",
+        "${DJANGO_SUPERUSER_EMAIL}",
+        "${DJANGO_SUPERUSER_PASSWORD}"
+    )
+    print("✅ Superuser created successfully!")
+else:
+    print("ℹ️  Superuser already exists, skipping creation.")
+PYEOF
+else
+  echo '⚠️  Superuser environment variables not set, ' \
+       'skipping superuser creation.'
+fi
+
+# Configura provedores sociais
+echo '🔐 Setting up social providers...'
+python manage.py setup_social_providers
+
+# Inicia o servidor
+echo '🚀 Starting Django server...'
+exec python manage.py runserver \
+    ${DJANGO_HOST:-0.0.0.0}:${DJANGO_PORT:-8000}
+INIT_SCRIPT
+        else
+            # Executa o comando passado como appuser
+            exec gosu appuser "$@"
+        fi
+    else
+        # Se já estiver rodando como appuser e não houver comando,
+        # executa inicialização
+        if [ $# -eq 0 ] || [ "$1" = "bash" ]; then
+            init_django
+        else
+            # Executa o comando passado
+            exec "$@"
+        fi
+    fi
+}
+
+# Executa o script principal
+main "$@"
+```
+
+> **E aqueles comandos, onde (em que parte do código) serão executados?**
+
+ - **ONDE ESTÃO SENDO EXECUTADOS:**
+   - Os comandos agora estão executados no [entrypoint.sh](../entrypoint.sh).
+ - **EM QUE PARTE DO CÓDIGO:**
+   - O [entrypoint.sh](../entrypoint.sh) é executado automaticamente quando o container inicia, porque:
+     - No [Dockerfile](../Dockerfile), o ENTRYPOINT está definido como ["/entrypoint.sh"] (linha 54 do Dockerfile).
+     - No [docker-compose.yml](../docker-compose.yml), o serviço web não tem um command: definido (foi removido).
+     - Quando não há **command:** no docker-compose, o Docker usa o *CMD* do [Dockerfile](../Dockerfile), que é ["bash"] (linha 69 do Dockerfile).
+
+> **NOTE:**  
+> Mas nós ainda não estamos criando um super usuário e nem configurando os logins sociais.
+
+Para resolver o problema citado acima nós vamos criar um script python para fazer isso automaticamente:
+
+[users/management/commands/setup_social_providers.py](../users/management/commands/setup_social_providers.py)
+```python
+import os
+
+from allauth.socialaccount.models import SocialApp
+from django.contrib.sites.models import Site
+from django.core.management.base import BaseCommand
+
+
+class Command(BaseCommand):
+    help = (
+        'Configura provedores sociais (Google e GitHub) a partir de '
+        'variáveis de ambiente'
+    )
+
+    def handle(self, *args, **options):
+        site_id = int(os.getenv("DJANGO_SITE_ID", "1"))
+        site_domain = os.getenv(
+            "DJANGO_SITE_DOMAIN", "localhost:8000"
+        )
+        site_name = os.getenv("DJANGO_SITE_NAME", "localhost")
+
+        try:
+            site = Site.objects.get(id=site_id)
+            # Atualiza o site se ainda estiver com valores padrão
+            if site.domain != site_domain or site.name != site_name:
+                site.domain = site_domain
+                site.name = site_name
+                site.save()
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f'Site {site_id} atualizado: '
+                        f'domain="{site_domain}", name="{site_name}"'
+                    )
+                )
+        except Site.DoesNotExist:
+            self.stdout.write(
+                self.style.ERROR(
+                    f'Site com ID {site_id} não encontrado. Criando...'
+                )
+            )
+            site = Site.objects.create(
+                id=site_id,
+                domain=site_domain,
+                name=site_name
+            )
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f'Site {site_id} criado: '
+                    f'domain="{site_domain}", name="{site_name}"'
+                )
+            )
+
+        # Configurar Google
+        google_client_id = os.getenv("GOOGLE_CLIENT_ID")
+        google_client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+
+        if google_client_id and google_client_secret:
+            social_app, created = SocialApp.objects.get_or_create(
+                provider='google',
+                defaults={
+                    'name': 'Google',
+                    'client_id': google_client_id,
+                    'secret': google_client_secret,
+                }
+            )
+
+            if not created:
+                # Atualiza se já existir
+                social_app.client_id = google_client_id
+                social_app.secret = google_client_secret
+                social_app.save()
+                self.stdout.write(
+                    self.style.WARNING('SocialApp Google atualizado.')
+                )
+            else:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        'SocialApp Google criado com sucesso.'
+                    )
+                )
+
+            # Garante que o site está associado
+            if site not in social_app.sites.all():
+                social_app.sites.add(site)
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f'Site {site_id} associado ao Google.'
+                    )
+                )
+        else:
+            self.stdout.write(
+                self.style.WARNING(
+                    'Variáveis GOOGLE_CLIENT_ID ou '
+                    'GOOGLE_CLIENT_SECRET não encontradas. '
+                    'Pulando configuração do Google.'
+                )
+            )
+
+        # Configurar GitHub
+        github_client_id = os.getenv("GITHUB_CLIENT_ID")
+        github_client_secret = os.getenv("GITHUB_CLIENT_SECRET")
+
+        if github_client_id and github_client_secret:
+            social_app, created = SocialApp.objects.get_or_create(
+                provider='github',
+                defaults={
+                    'name': 'GitHub',
+                    'client_id': github_client_id,
+                    'secret': github_client_secret,
+                }
+            )
+
+            if not created:
+                # Atualiza se já existir
+                social_app.client_id = github_client_id
+                social_app.secret = github_client_secret
+                social_app.save()
+                self.stdout.write(
+                    self.style.WARNING('SocialApp GitHub atualizado.')
+                )
+            else:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        'SocialApp GitHub criado com sucesso.'
+                    )
+                )
+
+            # Garante que o site está associado
+            if site not in social_app.sites.all():
+                social_app.sites.add(site)
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f'Site {site_id} associado ao GitHub.'
+                    )
+                )
+        else:
+            self.stdout.write(
+                self.style.WARNING(
+                    'Variáveis GITHUB_CLIENT_ID ou '
+                    'GITHUB_CLIENT_SECRET não encontradas. '
+                    'Pulando configuração do GitHub.'
+                )
+            )
+```
+
+Ótimo, agora é só recriar os containers novamente que ele automaticamente vai criar:
+
+ - Um super usuário;
+ - Configurar os logins sociais.
+
+```bash
+task build_compose
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="linking-social-buttons"></div>
+
+## `Linkando os botões de login social`
+
+ - Até aqui, nós configuramos o `django-allauth` para registrar os provedores (Google e GitHub) no painel administrativo.
+ - Agora, nós vamos fazer com que os botões **“Entrar com Google”** e **“Entrar com GitHub”** funcionem de verdade, conectando o *front-end* com o *allauth*.
+
+[templates/pages/index.html](../templates/pages/index.html)
+```html
+{% load socialaccount %}
+
+
+<!-- Botão de Login com Google -->
+<div>
+    <a href="{% provider_login_url 'google' %}"
+        class="w-full inline-flex justify-center 
+              items-center py-2 px-4 border 
+              border-gray-300 rounded-md 
+              shadow-sm bg-white hover:bg-gray-50">
+        <!-- Ícone do Google -->
+        {% include "icons/google.svg.html" %}
+        <span class="text-sm font-medium 
+                      text-gray-700">
+            Google
+        </span>
+    </a>
+</div>
+
+
+<!-- Botão de Login com GitHub -->
+<div>
+    <a href="{% provider_login_url 'github' %}"
+        class="w-full inline-flex justify-center 
+              items-center py-2 px-4 border 
+              border-gray-300 rounded-md 
+              shadow-sm bg-white hover:bg-gray-50">
+        <!-- Ícone do GitHub -->
+        {% include "icons/github.svg.html" %}
+        <span class="text-sm font-medium 
+                      text-gray-700">
+            GitHub
+        </span>
+    </a>
+</div>
+```
+
+**Explicação das principais partes do código:**
+
+**🧩 Herança do template e carregamento de tags**
+```html
+{% load socialaccount %}
+```
+
+ - `{% load socialaccount %}`
+   - Importa os templates tags fornecidas pelo `django-allauth (ex.: {% provider_login_url %})`.
+   - Sem esse `load`, as tags sociais nao seriam reconhecidas pelo template engine.
+
+**🧩 Botões de login social (links gerados pelo allauth)**
+```html
+<a href="{% provider_login_url 'google' %}">
+    ...
+</a>
+
+<a href="{% provider_login_url 'github' %}">
+    ...
+</a>
+```
+
+ - **O que faz?**
+   - `{% provider_login_url 'google' %}` e `{% provider_login_url 'github' %}`
+     - Geram as URLs corretas para iniciar o fluxo `OAuth` com *Google* e *GitHub* (fornecidas pelo django-allauth).
+     - Os `<a>` envolvem botões visuais que, ao clicar, redirecionam o usuário para o provedor externo.
+ - **Por que é importante?**
+   - Conecta o front-end ao sistema de login social do allauth.
+   - O allauth cuida de gerar a URL correta, adicionar parâmetros e tratar callbacks.
+
+Agora quando você clicar para logar com o **Google** ou **GitHub** você será redirecionado para o provedor externo, onde ele irá perguntar ao usuário se ele quer permitir o acesso ao seu perfil ou não:
+
+![img](images/social-login-01.png)  
+
+**NOTE:**  
+Porém, nesse exemplo acima nós não somos redirecionados diretamente para os provedores externos do google e github respectivamente. Primeiro, nós passamos por páginas internas do allauth e depois redirecionamos para eles.
+
+> **Tem como ir diretor para os provedores externos do Google e GitHub sem passar por essas páginas do allauth?**
+
+**SIM!**  
+Para isso nós precisamos configurar [settings.py](../core/settings.py) para que o allauth redirecione diretamente para os provedores externos:
+
+[core/settings.py](../core/settings.py)
+```python
+SOCIALACCOUNT_LOGIN_ON_GET = True
+```
+
+ - `SOCIALACCOUNT_LOGIN_ON_GET = True`
+   - Quando `True`, o allauth redireciona diretamente para o provedor externo ao clicar nos botões de login.
+   - **NOTE:** Por padrão, ele vem como `False`.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="rewriting-allauth-messages"></div>
+
+## `Reescrevendo as mensagens do Django Allauth`
+
+Continuando, aqui nós temos um probleminha, quando nós deslogamos com alguma das contas sociais aparece uma mensagem na nossa página principal (langin page):
+
+![img](images/social-login-02.png)  
+
+É como se fosse o *"resto"* de uma mensagem do Django depois do login!
+
+> **Como resolver isso?**
+
+#### Criando um `adapter.py`
+
+O arquivo [adapter.py](../users/adapter.py) serve para *personalizar o comportamento interno do Django Allauth*, que é o sistema responsável pelos *logins*, *logouts* e *cadastros* — tanto locais quanto via provedores sociais (como Google e GitHub).
+
+Por padrão, o Allauth envia automaticamente mensagens para o sistema de mensagens do Django (django.contrib.messages), exibindo textos como:
+
+ - “Successfully signed in as rodrigols89.”
+ - “You have signed out.”
+ - “Your email has been confirmed.”
+
+Essas mensagens são geradas dentro dos adapters do `Allauth` — classes que controlam como ele interage com o Django.
+
+Agora, vamos criar (recriar) nossas versões personalizadas dos adapters (`NoMessageAccountAdapter` e `NoMessageSocialAccountAdapter`) para impedir que essas mensagens automáticas sejam exibidas.
+
+> **NOTE:**  
+> Assim, temos controle total sobre quais mensagens aparecem para o usuário — mantendo o front mais limpo e sem textos gerados automaticamente.
+
+[users/adapter.py](../users/adapter.py)
+```python
+from allauth.account.adapter import DefaultAccountAdapter
+from allauth.socialaccount.adapter import (
+    DefaultSocialAccountAdapter
+)
+
+
+class NoMessageAccountAdapter(DefaultAccountAdapter):
+    def add_message(
+        self,
+        request,
+        level,
+        message_template,
+        message_context=None
+    ):
+        return
+
+
+class NoMessageSocialAccountAdapter(DefaultSocialAccountAdapter):
+    def add_message(
+        self,
+        request,
+        level,
+        message_template,
+        message_context=None
+    ):
+        return
+```
+
+Por fim, vamos adicionar algumas configurações gerais em `settings.py`:
+
+[settings.py](../core/settings.py)
+```python
+ACCOUNT_ADAPTER = "users.adapter.NoMessageAccountAdapter"
+SOCIALACCOUNT_ADAPTER = "users.adapter.NoMessageSocialAccountAdapter"
+```
+
+ - Use o caminho Python completo para a classe.
+ - No exemplo acima assumimos que:
+   - O app se chama `users`;
+   - No arquivo `adapter`;
+   - Estamos chamando as classes: `NoMessageAccountAdapter` e `NoMessageSocialAccountAdapter`.
+
+Por fim, reinicie o servidor (python manage.py runserver) depois de editar `settings.py` para que as mudanças tenham efeito.
 
 ---
 

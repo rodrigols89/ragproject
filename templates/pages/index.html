@@ -10,6 +10,7 @@
     para autenticação social.
 -->
 {% extends "base.html" %}
+{% load socialaccount %}
 
 {% block content %}
 
@@ -148,13 +149,13 @@
             <!-- ============================================================ -->
             <!-- BOTÕES DE LOGIN SOCIAL                                       -->
             <!-- ============================================================ -->
-            
+
             <!-- Grid com dois botões lado a lado (Google e GitHub) -->
             <div class="mt-6 grid grid-cols-2 gap-3">
                 
                 <!-- Botão de Login com Google -->
                 <div>
-                    <a href=""
+                    <a href="{% provider_login_url 'google' %}"
                        class="w-full inline-flex justify-center 
                               items-center py-2 px-4 border 
                               border-gray-300 rounded-md 
@@ -170,7 +171,7 @@
 
                 <!-- Botão de Login com GitHub -->
                 <div>
-                    <a href=""
+                    <a href="{% provider_login_url 'github' %}"
                        class="w-full inline-flex justify-center 
                               items-center py-2 px-4 border 
                               border-gray-300 rounded-md 
