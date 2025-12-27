@@ -71,7 +71,298 @@
                     </span>
                 {% endif %}
 
-            </nav>
+            </nav> <!-- 🧭 Breadcrumbs -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            <!-- 📌 Botões -->
+            <div class="mb-6 flex items-center gap-3 flex-wrap" data-preserve-selection="true">
+
+                <!-- 📌 Botão de Criar Pasta -->
+                <button
+                    command="show-modal"
+                    commandfor="create_folder_modal"
+                    class="inline-block
+                            bg-green-600
+                            hover:bg-green-700
+                            text-white
+                            px-4
+                            py-2
+                            rounded">
+                    ➕ Nova Pasta
+                </button>
+
+
+
+
+
+
+
+            </div> <!-- 📌 /Botões -->
+
+
+
+
+
+
+
+
+
+
+
+            <!-- MODAL Criar Pasta -->
+            <el-dialog>
+                <dialog
+                    id="create_folder_modal"
+                    aria-labelledby="modal-title"
+                    {% if show_modal %}data-auto-open="true"{% endif %}
+                    class="
+                        fixed
+                        inset-0
+                        size-auto
+                        max-h-none
+                        max-w-none
+                        overflow-y-auto
+                        bg-transparent
+                        backdrop:bg-transparent">
+
+                    <el-dialog-backdrop
+                        class="
+                            fixed
+                            inset-0
+                            bg-gray-900/50
+                            transition-opacity">
+                    </el-dialog-backdrop>
+
+                    <div
+                        tabindex="0"
+                        class="
+                            flex
+                            min-h-full
+                            items-center
+                            justify-center
+                            p-4
+                            text-center
+                            sm:p-0">
+                        <el-dialog-panel
+                            class="
+                                relative
+                                transform
+                                rounded-lg
+                                bg-white
+                                shadow-xl
+                                transition-all
+                                sm:w-full
+                                sm:max-w-md
+                                p-6">
+                            <form method="post" action="{% url 'create_folder' %}">
+                                {% csrf_token %}
+                                <input 
+                                    type="hidden" 
+                                    name="next" 
+                                    value="{{ request.get_full_path }}">
+                                <input
+                                    type="hidden" 
+                                    name="parent" 
+                                    value="{{ current_folder.id|default_if_none:'' }}">
+
+                                <h3 id="modal-title" class="text-lg font-semibold text-gray-900 mb-4">
+                                    Criar nova pasta
+                                </h3>
+
+                                <div>
+                                    <label
+                                        for="folder_name"
+                                        class="
+                                            block
+                                            text-sm
+                                            font-medium
+                                            text-gray-700">
+                                        Nome da pasta
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        id="folder_name"
+                                        required
+                                        class="
+                                            mt-1 block
+                                            w-full
+                                            px-4
+                                            py-2
+                                            border
+                                            rounded-lg"
+                                        autocomplete="off"
+                                        value="{{ form.name.value|default:'' }}">
+
+                                    {% if form.name.errors %}
+                                        <p
+                                            id="server-error"
+                                            class="
+                                                text-sm
+                                                text-red-500
+                                                mt-1"
+                                        >
+                                            {{ form.name.errors.0 }}
+                                        </p>
+                                    {% else %}
+                                        <p
+                                            id="server-error"
+                                            class="
+                                                text-sm
+                                                text-red-500
+                                                mt-1
+                                                hidden"
+                                        ></p>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mt-6 flex justify-end space-x-2">
+
+                                    <button
+                                        type="submit"
+                                        id="create_folder_btn"
+                                        class="
+                                            px-4
+                                            py-2
+                                            bg-green-600
+                                            hover:bg-green-700
+                                            text-white
+                                            rounded">
+                                        Criar
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        command="close"
+                                        commandfor="create_folder_modal"
+                                        class="
+                                            px-4
+                                            py-2
+                                            bg-gray-200
+                                            hover:bg-gray-300
+                                            rounded">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        </el-dialog-panel>
+                    </div>
+                </dialog>
+
+            </el-dialog> <!-- MODAL Criar Pasta -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
             <!-- 📁 Listagem de pastas e arquivos -->
             {% if folders or files %}
@@ -142,7 +433,69 @@
                 <p class="pt-4 text-gray-500 italic">
                     Nenhum item encontrado neste diretório.
                 </p>
-            {% endif %}
+            {% endif %} <!-- 📁 /Listagem de pastas e arquivos -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         </main>
     </div>
