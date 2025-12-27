@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Workspace{% endblock %}
 
@@ -72,44 +73,70 @@
 
             </nav>
 
-
-            <!-- 📁 Listagem mista de pastas e arquivos -->
+            <!-- 📁 Listagem de pastas e arquivos -->
             {% if folders or files %}
-                <ul class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4
-                    gap-4">
+
+                <ul class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
 
                     <!-- Pastas -->
                     {% for folder in folders %}
-                        <li class="bg-white border rounded-lg p-4
-                            hover:shadow-md transition cursor-pointer">
-                            <a href="?folder={{ folder.id }}" class="block">
-                                <span class="text-gray-800 font-semibold
-                                    flex items-center space-x-2">
-                                    <span>📁</span>
-                                    <span>{{ folder.name }}</span>
-                                </span>
-                            </a>
+                        <li class="
+                                bg-white
+                                border
+                                rounded-lg
+                                p-4
+                                cursor-pointer
+                                transition
+                                transform
+                                hover:scale-102
+                                hover:bg-gray-200
+                                selectable-item"
+                            data-url="?folder={{ folder.id }}"
+                            data-target="_self"
+                            data-kind="folder"
+                            data-id="{{ folder.id }}"
+                            draggable="true">
+                                <div class="block">
+                                    <span class="text-gray-800
+                                                font-semibold flex
+                                                items-center space-x-2">
+                                        <span>📁</span>
+                                        <span>{{ folder.name }}</span>
+                                    </span>
+                                </div>
                         </li>
                     {% endfor %}
 
                     <!-- Arquivos -->
                     {% for file in files %}
-                        <li class="bg-white border rounded-lg p-4
-                            hover:shadow-md transition">
-                            <a href="{{ file.file.url }}" target="_blank"
-                               class="block">
-                                <span class="text-gray-800 font-semibold
-                                    flex items-center space-x-2">
-                                    <span>📄</span>
-                                    <span>{{ file.name }}</span>
-                                </span>
-                                <p class="text-xs text-gray-500">
-                                    Enviado em
-                                    {{ file.uploaded_at|date:"d/m/Y H:i" }}
-                                </p>
-                            </a>
+                        <li class="
+                                bg-white
+                                border
+                                rounded-lg
+                                p-4
+                                cursor-pointer
+                                transition
+                                transform
+                                hover:scale-102
+                                hover:bg-gray-200
+                                selectable-item"
+                            data-url="{{ file.file.url }}"
+                            data-target="_blank"
+                            data-kind="file" data-id="{{ file.id }}"
+                            draggable="true">
+                                <div class="block">
+                                    <span class="
+                                                text-gray-800
+                                                font-semibold
+                                                flex items-center
+                                                space-x-2">
+                                        <span>📄</span>
+                                        <span>{{ file.name }}</span>
+                                    </span>
+                                </div>
                         </li>
                     {% endfor %}
+
                 </ul>
             {% else %}
                 <p class="pt-4 text-gray-500 italic">
@@ -117,7 +144,9 @@
                 </p>
             {% endif %}
 
-
         </main>
     </div>
 {% endblock %}
+{% block scripts %}
+    <script src="{% static 'workspace/js/workspace_home.js' %}"></script>
+{% endblock scripts %}
