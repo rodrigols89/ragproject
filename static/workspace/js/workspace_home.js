@@ -547,9 +547,7 @@
                 // Define a URL de ação baseada no tipo de item
                 let action = "";
                 if (kind === "folder") {
-                    // TODO: Implementar delete de pasta quando necessário
-                    alert("Remoção de pastas ainda não está implementada.");
-                    return;
+                    action = `/delete-folder/${id}/`;
                 } else if (kind === "file") {
                     action = `/delete-file/${id}/`;
                 }

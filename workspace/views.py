@@ -886,3 +886,44 @@ def delete_file(request, file_id):
         return redirect(f"/workspace?folder={folder.id}")
 
     return redirect("workspace_home")
+
+
+@login_required(login_url="/")
+def delete_folder(request, folder_id):
+    """
+    View para exclusão de pasta (soft delete).
+
+    Marca a pasta como deletada sem removê-la fisicamente do banco.
+    Retorna para a pasta pai ou para a raiz.
+
+    Args:
+        request: Objeto HttpRequest do Django
+        folder_id: ID da pasta a ser deletada
+
+    Returns:
+        HttpResponseRedirect: Redireciona após exclusão
+    """
+    if request.method != "POST":
+        return redirect("workspace_home")
+
+    folder = get_object_or_404(
+        Folder,
+        id=folder_id,
+        owner=request.user
+    )
+
+    parent = folder.parent
+
+    folder.is_deleted = True
+    folder.deleted_at = timezone.now()
+    folder.save()
+
+    messages.success(
+        request,
+        f"Pasta '{folder.name}' excluída com sucesso."
+    )
+
+    if parent:
+        return redirect(f"/workspace?folder={parent.id}")
+
+    return redirect("workspace_home")

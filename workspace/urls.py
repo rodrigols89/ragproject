@@ -28,4 +28,9 @@ urlpatterns = [
         view=views.delete_file,
         name="delete_file"
     ),
+    path(
+        route="delete-folder/<int:folder_id>/",
+        view=views.delete_folder,
+        name="delete_folder"
+    ),
 ]
