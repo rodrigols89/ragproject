@@ -81,6 +81,186 @@
         });
 
         // ============================================================
+        // VALIDAÇÃO DO FORMULÁRIO DE CRIAÇÃO DE PASTA
+        // ============================================================
+
+        /**
+         * Obtém a lista de nomes de pastas existentes no diretório
+         * atual.
+         * 
+         * Busca todos os elementos com data-kind="folder" e extrai
+         * seus nomes para validação de duplicação.
+         * 
+         * @returns {Array<string>} Array com os nomes das pastas
+         *                          existentes (em minúsculas)
+         */
+        function getExistingFolderNames() {
+            const folderItems = document.querySelectorAll(
+                '[data-kind="folder"]'
+            );
+            const folderNames = [];
+            
+            folderItems.forEach(function (item) {
+                // O nome da pasta está no segundo span dentro do item
+                // Estrutura: <span><span>📁</span><span>Nome</span></span>
+                // Busca todos os spans aninhados
+                const allSpans = item.querySelectorAll("span span");
+                
+                if (allSpans.length >= 2) {
+                    // Pega o último span que contém o nome da pasta
+                    const nameSpan = allSpans[allSpans.length - 1];
+                    const folderName = nameSpan.textContent.trim();
+                    
+                    // Normaliza o nome para comparação (minúsculas)
+                    if (folderName) {
+                        const normalized = folderName.toLowerCase();
+                        folderNames.push(normalized);
+                    }
+                }
+            });
+            
+            return folderNames;
+        }
+
+        /**
+         * Valida se o nome da pasta já existe no diretório atual.
+         * 
+         * @param {string} folderName - Nome da pasta a ser validado
+         * @returns {boolean} true se o nome já existe, false caso
+         *                   contrário
+         */
+        function folderNameExists(folderName) {
+            if (!folderName || !folderName.trim()) {
+                return false;
+            }
+            
+            const existingNames = getExistingFolderNames();
+            const normalizedName = folderName.trim().toLowerCase();
+            
+            return existingNames.includes(normalizedName);
+        }
+
+        /**
+         * Exibe a mensagem de erro no modal.
+         * 
+         * @param {HTMLElement} errorElement - Elemento que exibe o
+         *                                    erro
+         * @param {string} message - Mensagem de erro a ser exibida
+         */
+        function showErrorMessage(errorElement, message) {
+            if (!errorElement) return;
+            
+            errorElement.textContent = message;
+            errorElement.classList.remove("hidden");
+        }
+
+        /**
+         * Remove a mensagem de erro do modal.
+         * 
+         * @param {HTMLElement} errorElement - Elemento que exibe o
+         *                                    erro
+         */
+        function hideErrorMessage(errorElement) {
+            if (!errorElement) return;
+            
+            errorElement.textContent = "";
+            errorElement.classList.add("hidden");
+        }
+
+        // Referência ao modal de criação de pasta
+        const createFolderModal = document.getElementById(
+            "create_folder_modal"
+        );
+        
+        /**
+         * Função para inicializar a validação do formulário de pasta
+         */
+        function initializeFolderValidation() {
+            if (!createFolderModal) return;
+            
+            const folderNameInput = createFolderModal.querySelector(
+                "#folder_name"
+            );
+            const errorMessage = createFolderModal.querySelector(
+                "#server-error"
+            );
+            const createFolderForm = createFolderModal.querySelector(
+                "form"
+            );
+            
+            if (!folderNameInput || !errorMessage) return;
+            
+            // Remove listeners anteriores se existirem (usando clone)
+            // para evitar duplicação
+            const hasInputListener = folderNameInput.hasAttribute(
+                "data-validation-attached"
+            );
+            
+            if (!hasInputListener) {
+                // Validação em tempo real enquanto o usuário digita
+                folderNameInput.addEventListener("input", function () {
+                    const folderName = this.value.trim();
+                    
+                    // Se o campo estiver vazio, remove o erro
+                    if (!folderName) {
+                        hideErrorMessage(errorMessage);
+                        return;
+                    }
+                    
+                    // Verifica se o nome já existe
+                    if (folderNameExists(folderName)) {
+                        showErrorMessage(
+                            errorMessage,
+                            "Já existe uma pasta com esse nome " +
+                            "nesse diretório."
+                        );
+                    } else {
+                        hideErrorMessage(errorMessage);
+                    }
+                });
+                
+                folderNameInput.setAttribute(
+                    "data-validation-attached",
+                    "true"
+                );
+            }
+            
+            // Previne submissão do formulário se houver erro
+            if (createFolderForm && 
+                !createFolderForm.hasAttribute("data-submit-listener")) {
+                createFolderForm.addEventListener("submit", function (
+                    event
+                ) {
+                    const folderName = folderNameInput.value.trim();
+                    
+                    // Se o campo estiver vazio, permite validação
+                    // HTML5 padrão
+                    if (!folderName) {
+                        return;
+                    }
+                    
+                    // Se o nome já existe, previne a submissão
+                    if (folderNameExists(folderName)) {
+                        event.preventDefault();
+                        showErrorMessage(
+                            errorMessage,
+                            "Já existe uma pasta com esse nome " +
+                            "nesse diretório."
+                        );
+                        // Foca no campo para facilitar correção
+                        folderNameInput.focus();
+                        folderNameInput.select();
+                    }
+                });
+                
+                createFolderForm.setAttribute(
+                    "data-submit-listener",
+                    "true"
+                );
+            }
+        }
+
+        // ============================================================
         // SISTEMA DE COMANDOS PARA MODAIS
         // ============================================================
 
@@ -97,7 +277,7 @@
          *     Nova Pasta
          * </button>
          */
-        
+
         // Usa delegação de eventos para capturar cliques em
         // elementos com atributo "command"
         document.addEventListener("click", function (event) {
@@ -132,6 +312,31 @@
                 // Se o modal não existe, não faz nada
                 if (!modal) return;
                 
+                // Limpa o campo e mensagem de erro ao abrir o modal
+                if (commandFor === "create_folder_modal") {
+                    const inputField = modal.querySelector(
+                        "#folder_name"
+                    );
+                    const errorMessage = modal.querySelector(
+                        "#server-error"
+                    );
+                    
+                    if (inputField) {
+                        inputField.value = "";
+                        // Dispara evento input para garantir validação
+                        inputField.dispatchEvent(new Event("input", {
+                            bubbles: true
+                        }));
+                    }
+                    if (errorMessage) {
+                        errorMessage.textContent = "";
+                        errorMessage.classList.add("hidden");
+                    }
+                    
+                    // Garante que a validação está inicializada
+                    setTimeout(initializeFolderValidation, 50);
+                }
+                
                 // Abre o modal usando a API nativa do HTML5
                 modal.showModal();
                 
@@ -165,10 +370,48 @@
                 // Se o modal não existe, não faz nada
                 if (!modal) return;
                 
+                // Limpa o campo e mensagem de erro ao cancelar
+                if (commandFor === "create_folder_modal") {
+                    const inputField = modal.querySelector(
+                        "#folder_name"
+                    );
+                    const errorMessage = modal.querySelector(
+                        "#server-error"
+                    );
+                    
+                    if (inputField) {
+                        inputField.value = "";
+                    }
+                    if (errorMessage) {
+                        errorMessage.textContent = "";
+                        errorMessage.classList.add("hidden");
+                    }
+                }
+                
                 // Fecha o modal usando a API nativa do HTML5
                 modal.close();
             }
         });
+
+        // Inicializa a validação quando o DOM estiver pronto
+        if (createFolderModal) {
+            // Aguarda um pouco para garantir que o DOM está completo
+            setTimeout(function () {
+                initializeFolderValidation();
+                
+                // Se o modal abre automaticamente (erro do servidor),
+                // garante que a validação esteja ativa
+                if (createFolderModal.hasAttribute("data-auto-open")) {
+                    // Abre o modal automaticamente
+                    createFolderModal.showModal();
+                    
+                    // Aguarda o modal abrir completamente
+                    setTimeout(function () {
+                        initializeFolderValidation();
+                    }, 300);
+                }
+            }, 100);
+        }
 
     }); // DOMContentLoaded
 })(); // IIFE
