@@ -34,6 +34,7 @@
  - [`Refatorando a exibição das pastas e arquivos (Clicks, Houver, Select, Escape, Click Outside)`](#refactor-folders-and-files-v1)
  - [`Refatorando o modal para abrir selecionando o campo de digitação`](#refatoring-modal-to-select-input)
  - [`Refatorando para quando o usuário digitar um nome para uma pasta existente`](#refatoring-to-exists-folder-name)
+ - [`Implementando a inserção de arquivos (📤 Fazer Upload | Arquivo/Pasta)`](#implementing-insert-file)
 <!---
 [WHITESPACE RULES]
 - "40" Whitespace character.
@@ -8637,6 +8638,628 @@ if (createFolderModal) {
     }, 100);
 }
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+
+<div id="implementing-insert-file"></div>
+
+## `Implementando a inserção de arquivos (📤 Fazer Upload | Arquivo/Pasta)`
+
+> Aqui vamos implementar o botão e lógica para inserir um arquivo.
+
+Vamos começar implementando o botão de upload (📤 Fazer Upload):
+
+[workspace_home.html](../workspace/templates/pages/workspace_home.html)
+```html
+<!-- Dropdown de Upload (Botão de Upload) -->
+<div class="relative inline-block">
+    <button 
+        type="button"
+        id="upload_button"
+        class="
+            inline-block
+            bg-blue-600
+            hover:bg-blue-700
+            text-white
+            px-4
+            py-2
+            rounded
+            cursor-pointer">
+        📤 Fazer Upload
+    </button>
+    
+    <div
+        id="upload_menu" 
+        class="
+            hidden
+            absolute
+            left-0
+            mt-2
+            w-48
+            bg-white
+            rounded-md
+            shadow-lg
+            z-50
+            border
+            border-gray-200">
+        <div class="py-1">
+            <label
+                for="file_input"
+                class="
+                    block
+                    px-4
+                    py-2
+                    text-sm
+                    text-gray-700
+                    hover:bg-gray-100
+                    cursor-pointer">
+                📄 Arquivo
+            </label>
+            <label
+                for="folder_input"
+                class="
+                    block
+                    px-4
+                    py-2
+                    text-sm
+                    text-gray-700
+                    hover:bg-gray-100
+                    cursor-pointer">
+                📁 Pasta
+            </label>
+        </div>
+    </div>
+</div>
+```
+
+ - `<button id="upload_button"></button>`
+   - Esse *id* vai ser utilizado em algum lugar do projeto? **SIM!**
+   - No JavaScript *(workspace_home.js)*, para controlar a abertura e fechamento do menu de upload.
+ - `<div id="upload_menu"></div>`
+   - Esse *id* vai ser utilizado em algum lugar do projeto? **SIM!**
+   - Também no JavaScript *(workspace_home.js)*, para:
+     - Mostrar o menu;
+     - Esconder o menu;
+     - Detectar clique fora.
+ - `<label for="file_input"></label>`
+   - Esse *for* vai ser utilizado em algum lugar do projeto? **SIM!**
+   - Ele se conecta diretamente a um `<input>` invisível no HTML, algo como.
+ - `<label for="folder_input"></label>`
+   - Esse *for* vai ser utilizado em algum lugar do projeto? **SIM!**
+   - Assim como o anterior, ele se conecta a um <input> do tipo pasta.
+
+> **Mas quando eu clico no botão de upload ele não mostra as opções de "Arquivo" e "Pasta", por que?**  
+> Ou seja, ele não abre o dropdown de upload.
+
+Para que esse mecanismo funcione precisamos inserir o seguinte JavaScript:
+
+[workspace_home.js](../static/workspace/js/workspace_home.js)
+```js
+const uploadButton = document.getElementById("upload_button");
+const uploadMenu = document.getElementById("upload_menu");
+
+// Mostrar dropdown ao clicar
+uploadButton.addEventListener("click", function (event) {
+    event.stopPropagation();
+    uploadMenu.classList.toggle("hidden");
+});
+```
+
+Vamos começar explicando as constantes que nós criamos:
+
+ - `const uploadButton = document.getElementById("upload_button");`
+   - Procura no HTML um elemento com: `<button id="upload_button">`
+   - Armazena a referência na variável *uploadButton*.
+   - A partir desse momento:
+     - Você consegue escutar cliques;
+     - Alterar classes;
+     - Controlar comportamento do botão via JS.
+ - `const uploadMenu = document.getElementById("upload_menu");`
+   - Procura no HTML um elemento com: `<div id="upload_menu">`
+   - Armazena a referência na variável *uploadMenu*.
+   - Essa variável será usada para:
+     - Mostrar o menu;
+     - Esconder o menu;
+     - Alternar visibilidade.
+
+> **O bloco com `addEventListener()` é uma função ou um evento?**
+
+Esse bloco é:
+
+ - ✅ Um listener de evento (event listener).
+ - ❌ Não é uma função comum chamada manualmente.
+ - ❌ Não é executado imediatamente.
+
+O que ele faz conceitualmente? Ele diz ao navegador:
+
+> *“Quando o usuário clicar no botão de upload, execute esse código.”*
+
+Ou seja:
+
+ - Ele fica registrado;
+ - Só executa quando ocorre o evento click;
+ - É orientado a evento (event-driven).
+
+> **E as instrução dentro do `addEventListener()`?**
+
+```js
+// Mostrar dropdown ao clicar
+uploadButton.addEventListener("click", function (event) {
+    event.stopPropagation();
+    uploadMenu.classList.toggle("hidden");
+});
+```
+
+ - `event.stopPropagation();`
+   - **O que é "event."?**
+     - É o objeto do evento click.
+     - Criado automaticamente pelo navegador.
+     - Contém informações sobre:
+       - Onde ocorreu o clique;
+       - Tipo de evento;
+       - Comportamento de propagação.
+   - **O que faz "stopPropagation()"?**
+     - Ele interrompe a propagação do evento pelo DOM.
+     - Em termos simples:
+       - “Esse clique não deve subir para elementos pai.”
+ - `uploadMenu.classList.toggle("hidden");`
+   - **O que é ".classList"?**
+     - API do DOM para manipular classes CSS.
+     - Mais segura e moderna que *"className"*.
+   - **O que faz ".toggle("hidden")"?**
+     - Ele:
+       - Adiciona a classe "hidden" se ela não existir;
+       - Remove a classe "hidden" se ela existir.
+
+**NOTE:**  
+Se você prestou atenção até aqui vai ver que quando nós clicamos no botão **"📤 Fazer Upload"** ele abre o dropdown, mas não fecha até nós clicarmos nele novamente.
+
+Para resolver isso vamos criar 2 `listener` para:
+
+ - Quando o usuário aperta **"ESC"** o dropdown de upload feche;
+ - Ou **clicar fora do botão** o dropdown de upload feche.
+
+[workspace_home.js](../static/workspace/js/workspace_home.js)
+```js
+// Fechar dropdown ao pressionar ESC
+document.addEventListener("keydown", function(event) {
+    if (event.key === "Escape" && !uploadMenu.classList.contains("hidden")) {
+        uploadMenu.classList.add("hidden");
+    }
+});
+
+// Fechar dropdown ao clicar fora
+document.addEventListener("click", function(event) {
+    // Verifica se o clique foi fora do botão e do menu
+    const isClickInside = uploadButton.contains(event.target) || 
+                        uploadMenu.contains(event.target);
+    
+    if (!isClickInside && !uploadMenu.classList.contains("hidden")) {
+        uploadMenu.classList.add("hidden");
+    }
+});
+```
+
+Ok, agora nós estamos conseguindo abrir o dropdown para selecionar arquivos ou pastas para upload.
+
+> **Mas, quando eu clico em "Arquivo" ou "Pasta" não abre o menu para selecionar um arquivo ou pasta do meu computador, por que?**
+
+Para isso nós precisamos criar formulários que vão ser responsáveis por capturar os arquivos ou pastas do computador:
+
+[workspace_home.html](../workspace/templates/pages/workspace_home.html)
+```html
+<!-- Formulário para upload de arquivo -->
+<form method="post"
+        id="upload_file_form"
+        action=""
+        enctype="multipart/form-data"
+        class="hidden">
+
+    {% csrf_token %}
+
+    <input 
+        type="hidden" 
+        name="next" 
+        value="{{ request.get_full_path }}">
+    <input 
+        type="hidden" 
+        name="folder" 
+        value="{{ current_folder.id|default_if_none:'' }}">
+    <input 
+        type="hidden" 
+        name="upload_type" 
+        value="file">
+    <input 
+        type="file" 
+        name="file" 
+        id="file_input"
+        multiple 
+        class="hidden" 
+        onchange="this.form.submit()">
+</form>
+
+<!-- Formulário para upload de pasta -->
+<form method="post"
+        id="upload_folder_form"
+        action=""
+        enctype="multipart/form-data"
+        class="hidden">
+    {% csrf_token %}
+    <input 
+        type="hidden" 
+        name="next" 
+        value="{{ request.get_full_path }}">
+    <input 
+        type="hidden" 
+        name="folder" 
+        value="{{ current_folder.id|default_if_none:'' }}">
+    <input 
+        type="file" 
+        name="files" 
+        id="folder_input"
+        webkitdirectory 
+        directory 
+        multiple 
+        class="hidden" 
+        required>
+    <input 
+        type="hidden" 
+        name="folder_name" 
+        id="detected_folder_name">
+    <input 
+        type="hidden" 
+        name="file_paths" 
+        id="file_paths_json">
+</form>
+```
+
+Ótimo, já implementamos os botões responsáveis por fazer upload de pastas ou arquivos agora falta implementar essa lógica no backend.
+
+Vamos começar criando as **ROTAS/URLS** responsáveis por isso:
+
+[workspace/urls.py](../workspace/urls.py)
+```python
+from django.urls import path
+
+from . import views
+
+urlpatterns = [
+
+    ...
+
+    path(
+        route="upload-file/",
+        view=views.upload_file,
+        name="upload_file"
+    ),
+    path(
+        route="upload-folder/",
+        view=views.upload_folder,
+        name="upload_folder"
+    ),
+]
+```
+
+Continuando nas implementações, antes de criarmos a view (ação) de fazer upload de um novo arquivo vamos criar um validador para validar os **tipos** e **tamanhos** de arquivos aceitos:
+
+[workspace/validators.py](../workspace/validators.py)
+```python
+import os
+
+from django.core.exceptions import ValidationError
+
+MAX_FILE_MB = 100
+MAX_FILE_BYTES = MAX_FILE_MB * 1024 * 1024
+
+ALLOWED_EXTENSIONS = {
+    ".pdf",
+    ".txt",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".xlsm",
+    ".csv"
+}
+
+ALLOWED_FORMATTED = ", ".join(
+    ext.upper() for ext in ALLOWED_EXTENSIONS
+)
+
+
+def validate_file_type(uploaded_file):
+    ext = os.path.splitext(uploaded_file.name)[1].lower()
+
+    if ext not in ALLOWED_EXTENSIONS:
+        msg = (
+            f"Arquivo inválido: '{uploaded_file.name}'. "
+            f"O formato '{ext}' não é permitido. "
+            f"Apenas {ALLOWED_FORMATTED} são aceitos."
+        )
+        raise ValidationError(msg)
+
+
+def validate_file_size(uploaded_file):
+    if uploaded_file.size > MAX_FILE_BYTES:
+        msg = (
+            f"O arquivo '{uploaded_file.name}' excede o limite "
+            f"de {MAX_FILE_MB}MB."
+        )
+        raise ValidationError(msg)
+
+
+def validate_file(uploaded_file):
+    validate_file_type(uploaded_file)
+    validate_file_size(uploaded_file)
+```
+
+**NOTE:**  
+Ótimo, agora dentro de [workspace/views.py](../workspace/views.py) vamos implementar algumas funções utilitárias.
+
+Vamos começar pelo a função `_validate_uploaded_file()` que atua como uma camada intermediária de validação entre o sistema de upload e os validadores definidos em `validators.py`.
+
+Enquanto os validadores (validate_file, validate_file_type, validate_file_size) lançam exceções quando algo está errado, essa função tem como responsabilidade:
+
+ - Interceptar essas exceções;
+ - Traduzir o erro em uma mensagem amigável;
+ - Padronizar o formato do retorno;
+ - Evitar que exceções interrompam o fluxo da aplicação.
+
+> **NOTE:**  
+> Em vez de deixar a exceção “subir” e quebrar a execução, essa função converte erro em dado.
+
+[workspace/views.py](../workspace/views.py)
+```python
+from .validators import validate_file
+
+def _validate_uploaded_file(uploaded_file):
+    try:
+        validate_file(uploaded_file)
+        return None
+    except Exception as e:
+        if hasattr(e, '__str__'):
+            error_message = str(e)
+        else:
+            error_message = getattr(e, 'message', 'Erro desconhecido')
+        return f"{uploaded_file.name}: {error_message}"
+```
+
+Agora vamos implementar a função `_generate_unique_filename()` que vai ser responsável por garantir que um arquivo enviado não gere conflito de nome dentro de uma mesma pasta.
+
+Ela resolve um problema clássico em sistemas de arquivos:
+
+> *“O que fazer quando o usuário tenta enviar um arquivo com um nome que já existe?”*
+
+ - Em vez de:
+   - Sobrescrever o arquivo existente ❌;
+   - Retornar erro e bloquear o upload ❌.
+ - Essa função:
+   - Gera automaticamente um novo nome;
+   - Mantém o nome original como base;
+   - Acrescenta um sufixo incremental (1), (2), (3), etc.
+   - Garante unicidade no contexto correto.
+
+[workspace/views.py](../workspace/views.py)
+```python
+import os
+
+def _generate_unique_filename(user, folder, original_name):
+    base, ext = os.path.splitext(original_name)
+    new_name = original_name
+    counter = 1
+
+    while File.objects.filter(
+        uploader=user,
+        folder=folder,
+        name__iexact=new_name,
+        is_deleted=False
+    ).exists():
+        new_name = f"{base} ({counter}){ext}"
+        counter += 1
+
+    return new_name
+```
+
+Continuando, agora vamos implementar afunção `_create_file_instance()` que vai ser responsável por persistir efetivamente um arquivo no banco de dados, criando o registro correspondente no model File.
+
+Ela representa o último passo crítico do fluxo de upload, onde o sistema deixa de apenas “validar e preparar” o arquivo e passa a salvá-lo de fato, associando:
+
+ - O arquivo físico enviado;
+ - O nome final (já tratado para evitar duplicatas);
+ - O usuário que fez o upload.
+
+[workspace/views.py](../workspace/views.py)
+```python
+def _create_file_instance(user, folder, uploaded_file, new_name):
+    try:
+        File.objects.create(
+            name=new_name,
+            file=uploaded_file,
+            folder=folder,
+            uploader=user,
+        )
+        return True
+    except Exception:
+        return False
+```
+
+Continuando, vamos implementar a função `_process_single_file_upload()` que vai ser responsável por orquestrar todo o fluxo de upload de um único arquivo, do início ao fim, de forma controlada e previsível.
+
+Ela funciona como um coordenador que conecta várias funções menores e especializadas, garantindo que cada etapa do upload aconteça na ordem correta e que qualquer erro seja tratado sem quebrar o fluxo da aplicação.
+
+[workspace/views.py](../workspace/views.py)
+```python
+def _process_single_file_upload(user, folder, uploaded_file):
+
+    error_msg = _validate_uploaded_file(uploaded_file)
+
+    if error_msg:
+        return (False, error_msg)
+
+    new_name = _generate_unique_filename(
+        user, folder, uploaded_file.name
+    )
+
+    if _create_file_instance(user, folder, uploaded_file, new_name):
+        return (True, None)
+
+    return (False, f"{uploaded_file.name}: Erro ao salvar arquivo")
+```
+
+Agora que nós já temos todas as funções utilitárias prontas, vamos implementar a view (ação) `upload_folder()` que vai ser responsável por processar o upload de arquivos:
+
+[workspace/views.py](../workspace/views.py)
+```python
+MAX_ERROR_MESSAGES_UPLOAD_FILE = 3
+MAX_ERROR_MESSAGES_UPLOAD_FOLDER = 5
+
+@login_required(login_url="/")
+def upload_file(request):
+
+    if request.method == "POST":
+        uploaded_files = request.FILES.getlist("file")
+        next_url = request.POST.get("next", "workspace_home")
+        folder_id = request.POST.get("folder")
+        folder = None
+
+        if folder_id:
+            folder = get_object_or_404(
+                Folder,
+                id=folder_id,
+                owner=request.user
+            )
+
+        if not uploaded_files:
+            messages.error(request, "Nenhum arquivo foi enviado.")
+            return redirect(next_url)
+
+        uploaded_count = 0
+        error_count = 0
+        error_messages = []
+
+        for uploaded_file in uploaded_files:
+            success, error_message = _process_single_file_upload(
+                request.user, folder, uploaded_file
+            )
+
+            if success:
+                uploaded_count += 1
+            else:
+                error_count += 1
+                error_messages.append(error_message)
+
+        if uploaded_count > 0:
+            if uploaded_count == 1:
+                messages.success(
+                    request,
+                    "Arquivo enviado com sucesso!"
+                )
+            else:
+                messages.success(
+                    request,
+                    f"{uploaded_count} arquivo(s) enviado(s) com sucesso!"
+                )
+
+        if error_count > 0:
+            for error_msg in error_messages[:MAX_ERROR_MESSAGES_UPLOAD_FILE]:
+                messages.error(request, error_msg)
+            if len(error_messages) > MAX_ERROR_MESSAGES_UPLOAD_FILE:
+                max_err = MAX_ERROR_MESSAGES_UPLOAD_FILE
+                remaining = len(error_messages) - max_err
+                messages.warning(
+                    request,
+                    f"E mais {remaining} arquivo(s) com erro."
+                )
+
+        return redirect(next_url)
+
+    return redirect("workspace_home")
+```
+
+Para finalizar, nós precisamos linkar (relacionar) essa view (ação) com o formulário de upload no template `workspace_home.html`:
+
+[workspace_home.html](../workspace/templates/pages/workspace_home.html)
+```html
+<form action="{% url 'upload_file' %}">
+
+</form>
+```
+
+Ótimo, agora se você testar vai ver que nós estamos conseguindo enviar arquivos com sucesso na pasta atual.
+
+> **Mas, por que quando eu adiciono algum arquivo com extensão ou tamanho não aceito não aparece nenhuma mensagem de erro?**
+
+Bem, para isso nós precisamos implementar essas mensagens de erros no nosso template:
+
+[workspace/templates/workspace/upload.html](../workspace/templates/workspace/upload.html)
+```html
+<!-- Mensagens -->
+{% if messages %}
+    <ul class="mb-4">
+        {% for message in messages %}
+            <li class="px-4 py-2 rounded 
+                {% if message.tags == 'success' %}
+                    bg-green-100 text-green-700
+                {% else %}bg-red-100 text-red-700{% endif %}">
+                    {{ message }}
+            </li>
+        {% endfor %}
+    </ul>
+{% endif %}
+```
+
+> **NOTE:**  
+> Agora se você tentar inserir algum arquivo com extensão ou tamanhã não aceito vai aparecer uma mensagem de erro.
 
 ---
 

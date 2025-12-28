@@ -413,5 +413,33 @@
             }, 100);
         }
 
+
+        const uploadButton = document.getElementById("upload_button");
+        const uploadMenu = document.getElementById("upload_menu");
+
+        // Mostrar dropdown ao clicar
+        uploadButton.addEventListener("click", function (event) {
+            event.stopPropagation();
+            uploadMenu.classList.toggle("hidden");
+        });
+
+        // Fechar dropdown ao pressionar ESC
+        document.addEventListener("keydown", function(event) {
+            if (event.key === "Escape" && !uploadMenu.classList.contains("hidden")) {
+                uploadMenu.classList.add("hidden");
+            }
+        });
+
+        // Fechar dropdown ao clicar fora
+        document.addEventListener("click", function(event) {
+            // Verifica se o clique foi fora do botão e do menu
+            const isClickInside = uploadButton.contains(event.target) || 
+                                uploadMenu.contains(event.target);
+            
+            if (!isClickInside && !uploadMenu.classList.contains("hidden")) {
+                uploadMenu.classList.add("hidden");
+            }
+        });
+
     }); // DOMContentLoaded
 })(); // IIFE

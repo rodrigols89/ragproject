@@ -74,37 +74,19 @@
             </nav> <!-- 🧭 Breadcrumbs -->
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+            <!-- Mensagens -->
+            {% if messages %}
+                <ul class="mb-4">
+                    {% for message in messages %}
+                        <li class="px-4 py-2 rounded 
+                            {% if message.tags == 'success' %}
+                                bg-green-100 text-green-700
+                            {% else %}bg-red-100 text-red-700{% endif %}">
+                                {{ message }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %} <!-- /Mensagens -->
 
 
 
@@ -135,7 +117,181 @@
                             py-2
                             rounded">
                     ➕ Nova Pasta
-                </button>
+                </button> <!-- 📌 /Botão de Criar Pasta -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                <!-- Dropdown de Upload (Botão de Upload) -->
+                <div class="relative inline-block">
+                    <button 
+                        type="button"
+                        id="upload_button"
+                        class="
+                            inline-block
+                            bg-blue-600
+                            hover:bg-blue-700
+                            text-white
+                            px-4
+                            py-2
+                            rounded
+                            cursor-pointer">
+                        📤 Fazer Upload
+                    </button>
+                    
+                    <div
+                        id="upload_menu" 
+                        class="
+                            hidden
+                            absolute
+                            left-0
+                            mt-2
+                            w-48
+                            bg-white
+                            rounded-md
+                            shadow-lg
+                            z-50
+                            border
+                            border-gray-200">
+                        <div class="py-1">
+                            <label
+                                for="file_input"
+                                class="
+                                    block
+                                    px-4
+                                    py-2
+                                    text-sm
+                                    text-gray-700
+                                    hover:bg-gray-100
+                                    cursor-pointer">
+                                📄 Arquivo
+                            </label>
+                            <label
+                                for="folder_input"
+                                class="
+                                    block
+                                    px-4
+                                    py-2
+                                    text-sm
+                                    text-gray-700
+                                    hover:bg-gray-100
+                                    cursor-pointer">
+                                📁 Pasta
+                            </label>
+                        </div>
+                    </div>
+                </div> <!-- /Dropdown de Upload (Botão de Upload) -->
+
+                <!-- Formulário para upload de arquivo -->
+                <form method="post"
+                      id="upload_file_form"
+                      action="{% url 'upload_file' %}"
+                      enctype="multipart/form-data"
+                      class="hidden">
+
+                    {% csrf_token %}
+
+                    <input 
+                        type="hidden" 
+                        name="next" 
+                        value="{{ request.get_full_path }}">
+                    <input 
+                        type="hidden" 
+                        name="folder" 
+                        value="{{ current_folder.id|default_if_none:'' }}">
+                    <input 
+                        type="hidden" 
+                        name="upload_type" 
+                        value="file">
+                    <input 
+                        type="file" 
+                        name="file" 
+                        id="file_input"
+                        multiple 
+                        class="hidden" 
+                        onchange="this.form.submit()">
+                </form> <!-- /Formulário para upload de arquivo -->
+
+                <!-- Formulário para upload de pasta -->
+                <form method="post"
+                      id="upload_folder_form"
+                      action=""
+                      enctype="multipart/form-data"
+                      class="hidden">
+                    {% csrf_token %}
+                    <input 
+                        type="hidden" 
+                        name="next" 
+                        value="{{ request.get_full_path }}">
+                    <input 
+                        type="hidden" 
+                        name="folder" 
+                        value="{{ current_folder.id|default_if_none:'' }}">
+                    <input 
+                        type="file" 
+                        name="files" 
+                        id="folder_input"
+                        webkitdirectory 
+                        directory 
+                        multiple 
+                        class="hidden" 
+                        required>
+                    <input 
+                        type="hidden" 
+                        name="folder_name" 
+                        id="detected_folder_name">
+                    <input 
+                        type="hidden" 
+                        name="file_paths" 
+                        id="file_paths_json">
+                </form> <!-- /Formulário para upload de pasta -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -144,6 +300,47 @@
 
 
             </div> <!-- 📌 /Botões -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

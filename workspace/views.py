@@ -1,9 +1,15 @@
+import os
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import FolderForm
 from .models import File, Folder
+from .validators import validate_file
+
+MAX_ERROR_MESSAGES_UPLOAD_FILE = 3
+MAX_ERROR_MESSAGES_UPLOAD_FOLDER = 5
 
 
 @login_required(login_url="/")
@@ -181,5 +187,151 @@ def create_folder(request):
         }
 
         return render(request, "pages/workspace_home.html", context)
+
+    return redirect("workspace_home")
+
+
+def _validate_uploaded_file(uploaded_file):
+    """
+    Valida um arquivo enviado e retorna mensagem de erro se houver.
+    """
+    try:
+        validate_file(uploaded_file)
+        return None
+    except Exception as e:
+        if hasattr(e, '__str__'):
+            error_message = str(e)
+        else:
+            error_message = getattr(e, 'message', 'Erro desconhecido')
+        return f"{uploaded_file.name}: {error_message}"
+
+
+def _generate_unique_filename(user, folder, original_name):
+    """
+    Gera um nome de arquivo único para evitar duplicatas.
+    """
+    base, ext = os.path.splitext(original_name)
+    new_name = original_name
+    counter = 1
+
+    while File.objects.filter(
+        uploader=user,
+        folder=folder,
+        name__iexact=new_name,
+        is_deleted=False
+    ).exists():
+        new_name = f"{base} ({counter}){ext}"
+        counter += 1
+
+    return new_name
+
+
+def _create_file_instance(user, folder, uploaded_file, new_name):
+    """
+    Cria uma instância de File no banco de dados.
+    Retorna True se bem-sucedido, False caso contrário.
+    """
+    try:
+        File.objects.create(
+            name=new_name,
+            file=uploaded_file,
+            folder=folder,
+            uploader=user,
+        )
+        return True
+    except Exception:
+        return False
+
+
+def _process_single_file_upload(user, folder, uploaded_file):
+    """
+    Processa o upload de um único arquivo.
+    Retorna (success, error_message).
+    """
+    error_msg = _validate_uploaded_file(uploaded_file)
+    if error_msg:
+        return (False, error_msg)
+
+    new_name = _generate_unique_filename(
+        user, folder, uploaded_file.name
+    )
+
+    if _create_file_instance(user, folder, uploaded_file, new_name):
+        return (True, None)
+
+    return (False, f"{uploaded_file.name}: Erro ao salvar arquivo")
+
+
+@login_required(login_url="/")
+def upload_file(request):
+    """
+    View para upload de arquivos (um ou múltiplos).
+
+    Realiza validações de extensão e tamanho, além de renomear
+    automaticamente arquivos duplicados. Suporta upload de
+    um ou múltiplos arquivos.
+
+    Args:
+        request: Objeto HttpRequest do Django
+
+    Returns:
+        HttpResponse: Redireciona após upload ou exibe erros
+    """
+    if request.method == "POST":
+        uploaded_files = request.FILES.getlist("file")
+        next_url = request.POST.get("next", "workspace_home")
+        folder_id = request.POST.get("folder")
+        folder = None
+
+        if folder_id:
+            folder = get_object_or_404(
+                Folder,
+                id=folder_id,
+                owner=request.user
+            )
+
+        if not uploaded_files:
+            messages.error(request, "Nenhum arquivo foi enviado.")
+            return redirect(next_url)
+
+        uploaded_count = 0
+        error_count = 0
+        error_messages = []
+
+        for uploaded_file in uploaded_files:
+            success, error_message = _process_single_file_upload(
+                request.user, folder, uploaded_file
+            )
+
+            if success:
+                uploaded_count += 1
+            else:
+                error_count += 1
+                error_messages.append(error_message)
+
+        if uploaded_count > 0:
+            if uploaded_count == 1:
+                messages.success(
+                    request,
+                    "Arquivo enviado com sucesso!"
+                )
+            else:
+                messages.success(
+                    request,
+                    f"{uploaded_count} arquivo(s) enviado(s) com sucesso!"
+                )
+
+        if error_count > 0:
+            for error_msg in error_messages[:MAX_ERROR_MESSAGES_UPLOAD_FILE]:
+                messages.error(request, error_msg)
+            if len(error_messages) > MAX_ERROR_MESSAGES_UPLOAD_FILE:
+                max_err = MAX_ERROR_MESSAGES_UPLOAD_FILE
+                remaining = len(error_messages) - max_err
+                messages.warning(
+                    request,
+                    f"E mais {remaining} arquivo(s) com erro."
+                )
+
+        return redirect(next_url)
 
     return redirect("workspace_home")
