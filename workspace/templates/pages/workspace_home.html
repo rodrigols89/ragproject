@@ -323,6 +323,185 @@
 
 
 
+                <!-- 📌 Botão de Renomear Item Selecionado -->
+                <button
+                    id="rename_selected"
+                    class="
+                        inline-block
+                        bg-yellow-500
+                        hover:bg-yellow-600
+                        text-white
+                        px-4
+                        py-2
+                        rounded
+                        disabled:opacity-50
+                        disabled:cursor-not-allowed"
+                        disabled>
+                    ✏ Renomear
+                </button> <!-- 📌 /Botão de Renomear Item Selecionado -->
+
+                <!-- MODAL Renomear Item -->
+                <dialog
+                    id="rename_modal"
+                    aria-labelledby="rename-title"
+                    data-preserve-selection="true"
+                    class="
+                        fixed inset-0
+                        size-auto
+                        max-h-none
+                        max-w-none
+                        overflow-y-auto
+                        bg-transparent
+                        backdrop:bg-transparent">
+                    <div
+                        tabindex="0"
+                        class="
+                            flex
+                            min-h-full
+                            items-center
+                            justify-center
+                            p-4
+                            text-center
+                            sm:p-0">
+                        <div
+                            class="
+                                relative
+                                transform
+                                rounded-lg
+                                bg-white
+                                shadow-xl
+                                transition-all
+                                sm:w-full
+                                sm:max-w-md
+                                p-6">
+                            <form id="rename_form" method="post">
+
+                                {% csrf_token %}
+
+                                <input
+                                    type="hidden"
+                                    name="next"
+                                    value="{{ request.get_full_path }}">
+                                <h3
+                                    id="rename-title"
+                                    class="
+                                        text-lg
+                                        font-semibold
+                                        text-gray-900
+                                        mb-4">
+                                    Renomear item
+                                </h3>
+                                <div>
+                                    <label
+                                        for="rename_input"
+                                        class="
+                                            block
+                                            text-sm
+                                            font-medium
+                                            text-gray-700">
+                                        Novo nome
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="rename_input"
+                                        name="name"
+                                        required
+                                        class="
+                                            mt-1
+                                            block
+                                            w-full
+                                            px-4 py-2
+                                            border
+                                            rounded-lg"
+                                        autocomplete="off">
+                                    <p
+                                        id="rename-error"
+                                        class="
+                                            text-sm
+                                            text-red-500
+                                            mt-1
+                                            hidden"
+                                    ></p>
+                                </div>
+                                <div
+                                    class="
+                                        mt-6
+                                        flex
+                                        justify-end
+                                        space-x-2">
+                                    <button
+                                        type="submit"
+                                        class="
+                                            px-4
+                                            py-2
+                                            bg-yellow-500
+                                            hover:bg-yellow-600
+                                            text-white
+                                            rounded">
+                                        Salvar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        id="rename_cancel"
+                                        class="
+                                            px-4
+                                            py-2
+                                            bg-gray-200
+                                            hover:bg-gray-300
+                                            rounded">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </dialog> <!-- /MODAL Renomear Item -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
             </div> <!-- 📌 /Botões -->

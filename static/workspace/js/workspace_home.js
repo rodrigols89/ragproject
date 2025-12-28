@@ -25,6 +25,13 @@
         const deleteButton = document.getElementById("delete_selected");
         const deleteForm = document.getElementById("delete_form");
 
+        // Referências ao botão e modal de renomear
+        const renameButton = document.getElementById("rename_selected");
+        const renameModal = document.getElementById("rename_modal");
+        const renameForm = document.getElementById("rename_form");
+        const renameInput = document.getElementById("rename_input");
+        const renameCancelButton = document.getElementById("rename_cancel");
+
         /**
          * Atualiza o estado do botão de remover baseado na seleção
          */
@@ -39,6 +46,27 @@
         }
 
         /**
+         * Atualiza o estado do botão de renomear baseado na seleção
+         * Só habilita se o item selecionado for uma pasta
+         */
+        function updateRenameButton() {
+            if (!renameButton) return;
+            
+            if (selectedItem) {
+                // Usa getAttribute para garantir que funciona mesmo se dataset não estiver disponível
+                const itemKind = selectedItem.getAttribute("data-kind") || selectedItem.dataset?.kind;
+                
+                if (itemKind === "folder") {
+                    renameButton.disabled = false;
+                } else {
+                    renameButton.disabled = true;
+                }
+            } else {
+                renameButton.disabled = true;
+            }
+        }
+
+        /**
          * Remove seleção de todos os itens
          */
         function clearSelection() {
@@ -47,6 +75,7 @@
             });
             selectedItem = null;
             updateDeleteButton();
+            updateRenameButton();
         }
 
         /**
@@ -57,6 +86,7 @@
             item.classList.add("ring-2", "ring-blue-500");
             selectedItem = item;
             updateDeleteButton();
+            updateRenameButton();
         }
 
         // Aplica eventos a cada item
@@ -151,16 +181,27 @@
          * Valida se o nome da pasta já existe no diretório atual.
          * 
          * @param {string} folderName - Nome da pasta a ser validado
+         * @param {string} excludeName - Nome a ser excluído da validação (opcional)
          * @returns {boolean} true se o nome já existe, false caso
          *                   contrário
          */
-        function folderNameExists(folderName) {
+        function folderNameExists(folderName, excludeName = null) {
             if (!folderName || !folderName.trim()) {
                 return false;
             }
             
             const existingNames = getExistingFolderNames();
             const normalizedName = folderName.trim().toLowerCase();
+            
+            // Se há um nome para excluir (ex: nome atual da pasta sendo renomeada),
+            // remove-o da lista antes de verificar
+            if (excludeName) {
+                const normalizedExclude = excludeName.trim().toLowerCase();
+                const index = existingNames.indexOf(normalizedExclude);
+                if (index > -1) {
+                    existingNames.splice(index, 1);
+                }
+            }
             
             return existingNames.includes(normalizedName);
         }
@@ -560,8 +601,197 @@
             });
         }
 
-        // Inicializa o estado do botão ao carregar a página
+        // Inicializa o estado dos botões ao carregar a página
         updateDeleteButton();
+        updateRenameButton();
+
+
+        // ====================================================================
+        // BOTÃO DE RENOMEAR ITEM (PASTA)
+        // ====================================================================
+
+        /**
+         * Obtém o nome atual do item selecionado
+         * Extrai o nome do segundo span dentro do item
+         */
+        function getSelectedItemName() {
+            if (!selectedItem) return "";
+            
+            // Estrutura: <span><span>📁</span><span>Nome</span></span>
+            const allSpans = selectedItem.querySelectorAll("span span");
+            
+            if (allSpans.length >= 2) {
+                // Pega o último span que contém o nome
+                const nameSpan = allSpans[allSpans.length - 1];
+                return nameSpan.textContent.trim();
+            }
+            
+            return "";
+        }
+
+        if (renameButton && renameModal && renameForm && renameInput) {
+            // Referência ao elemento de erro do modal de renomear
+            const renameErrorElement = document.getElementById("rename-error");
+            
+            // Variável para armazenar o nome atual da pasta sendo renomeada
+            let currentFolderName = "";
+
+            /**
+             * Inicializa a validação do formulário de renomear
+             */
+            function initializeRenameValidation() {
+                if (!renameInput || !renameErrorElement) return;
+
+                // Remove listeners anteriores se existirem
+                const hasInputListener = renameInput.hasAttribute(
+                    "data-validation-attached"
+                );
+
+                if (!hasInputListener) {
+                    // Validação em tempo real enquanto o usuário digita
+                    renameInput.addEventListener("input", function () {
+                        const newName = this.value.trim();
+
+                        // Se o campo estiver vazio, remove o erro
+                        if (!newName) {
+                            hideErrorMessage(renameErrorElement);
+                            return;
+                        }
+
+                        // Se o nome for igual ao atual, não há erro
+                        if (newName.toLowerCase() === currentFolderName.toLowerCase()) {
+                            hideErrorMessage(renameErrorElement);
+                            return;
+                        }
+
+                        // Verifica se o nome já existe (excluindo o nome atual)
+                        if (folderNameExists(newName, currentFolderName)) {
+                            showErrorMessage(
+                                renameErrorElement,
+                                "Já existe uma pasta com esse nome " +
+                                "nesse diretório."
+                            );
+                        } else {
+                            hideErrorMessage(renameErrorElement);
+                        }
+                    });
+
+                    renameInput.setAttribute(
+                        "data-validation-attached",
+                        "true"
+                    );
+                }
+
+                // Previne submissão do formulário se houver erro
+                if (renameForm && 
+                    !renameForm.hasAttribute("data-submit-listener")) {
+                    renameForm.addEventListener("submit", function (event) {
+                        const newName = renameInput.value.trim();
+
+                        // Se o campo estiver vazio, permite validação HTML5 padrão
+                        if (!newName) {
+                            return;
+                        }
+
+                        // Se o nome for igual ao atual, permite submissão
+                        if (newName.toLowerCase() === currentFolderName.toLowerCase()) {
+                            return;
+                        }
+
+                        // Se o nome já existe, previne a submissão
+                        if (folderNameExists(newName, currentFolderName)) {
+                            event.preventDefault();
+                            showErrorMessage(
+                                renameErrorElement,
+                                "Já existe uma pasta com esse nome " +
+                                "nesse diretório."
+                            );
+                            // Foca no campo para facilitar correção
+                            renameInput.focus();
+                            renameInput.select();
+                        }
+                    });
+
+                    renameForm.setAttribute(
+                        "data-submit-listener",
+                        "true"
+                    );
+                }
+            }
+
+            // Abre o modal de renomear quando clicar no botão
+            renameButton.addEventListener("click", (event) => {
+                event.preventDefault();
+                if (!selectedItem) return;
+
+                const kind = selectedItem.dataset.kind;
+                const id = selectedItem.dataset.id;
+                
+                // Só permite renomear pastas
+                if (kind !== "folder" || !id) return;
+
+                // Preenche o campo com o nome atual
+                currentFolderName = getSelectedItemName();
+                renameInput.value = currentFolderName;
+                
+                // Limpa mensagem de erro ao abrir o modal
+                if (renameErrorElement) {
+                    hideErrorMessage(renameErrorElement);
+                }
+                
+                // Define a action do formulário
+                renameForm.action = `/rename-folder/${id}/`;
+                
+                // Inicializa a validação
+                initializeRenameValidation();
+                
+                // Abre o modal
+                renameModal.showModal();
+                
+                // Foca no campo de input após o modal abrir
+                setTimeout(() => {
+                    renameInput.focus();
+                    renameInput.select();
+                }, 100);
+            });
+
+            // Fecha o modal ao clicar em cancelar
+            if (renameCancelButton) {
+                renameCancelButton.addEventListener("click", () => {
+                    renameModal.close();
+                    renameInput.value = "";
+                    currentFolderName = "";
+                    if (renameErrorElement) {
+                        hideErrorMessage(renameErrorElement);
+                    }
+                });
+            }
+
+            // Fecha o modal ao clicar fora (backdrop)
+            renameModal.addEventListener("click", (event) => {
+                // Se o clique foi no backdrop (não no conteúdo do modal)
+                if (event.target === renameModal) {
+                    renameModal.close();
+                    renameInput.value = "";
+                    currentFolderName = "";
+                    if (renameErrorElement) {
+                        hideErrorMessage(renameErrorElement);
+                    }
+                }
+            });
+
+            // Fecha o modal ao pressionar ESC
+            renameModal.addEventListener("keydown", (event) => {
+                if (event.key === "Escape") {
+                    renameModal.close();
+                    renameInput.value = "";
+                    currentFolderName = "";
+                    if (renameErrorElement) {
+                        hideErrorMessage(renameErrorElement);
+                    }
+                }
+            });
+        }
 
     }); // DOMContentLoaded
 })(); // IIFE

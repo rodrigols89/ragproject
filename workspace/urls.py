@@ -33,4 +33,9 @@ urlpatterns = [
         view=views.delete_folder,
         name="delete_folder"
     ),
+    path(
+        route="rename-folder/<int:folder_id>/",
+        view=views.rename_folder,
+        name="rename_folder"
+    ),
 ]

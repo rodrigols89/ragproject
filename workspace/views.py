@@ -927,3 +927,58 @@ def delete_folder(request, folder_id):
         return redirect(f"/workspace?folder={parent.id}")
 
     return redirect("workspace_home")
+
+
+@login_required(login_url="/")
+def rename_folder(request, folder_id):
+    """
+    View para renomear pasta.
+
+    Valida o novo nome e verifica duplicação no mesmo nível hierárquico.
+
+    Args:
+        request: Objeto HttpRequest do Django
+        folder_id: ID da pasta a ser renomeada
+
+    Returns:
+        HttpResponseRedirect: Redireciona após renomeação
+    """
+    folder = get_object_or_404(
+        Folder,
+        id=folder_id,
+        owner=request.user,
+        is_deleted=False
+    )
+
+    if request.method != "POST":
+        return redirect("workspace_home")
+
+    new_name = request.POST.get("name", "").strip()
+    next_url = request.POST.get("next", "workspace_home")
+
+    if not new_name:
+        messages.error(
+            request,
+            "O nome da pasta não pode ser vazio."
+        )
+        return redirect(next_url)
+
+    if Folder.objects.filter(
+        owner=request.user,
+        parent=folder.parent,
+        name__iexact=new_name,
+        is_deleted=False,
+    ).exclude(id=folder.id).exists():
+        messages.error(
+            request,
+            "Já existe uma pasta com esse nome nesse diretório."
+        )
+        return redirect(next_url)
+
+    folder.name = new_name
+    folder.save()
+    messages.success(
+        request,
+        f"Pasta renomeada para '{new_name}'."
+    )
+    return redirect(next_url)
