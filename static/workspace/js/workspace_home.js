@@ -47,16 +47,32 @@
 
         /**
          * Atualiza o estado do botão de renomear baseado na seleção
-         * Só habilita se o item selecionado for uma pasta
+         * Habilita se o item selecionado for uma pasta ou arquivo
          */
         function updateRenameButton() {
             if (!renameButton) return;
             
             if (selectedItem) {
-                // Usa getAttribute para garantir que funciona mesmo se dataset não estiver disponível
-                const itemKind = selectedItem.getAttribute("data-kind") || selectedItem.dataset?.kind;
+                // Tenta múltiplas formas de obter o tipo do item
+                let itemKind = null;
                 
-                if (itemKind === "folder") {
+                // Primeiro tenta getAttribute (mais confiável)
+                const attrKind = selectedItem.getAttribute("data-kind");
+                if (attrKind) {
+                    itemKind = attrKind.trim();
+                }
+                
+                // Se não encontrou, tenta dataset
+                if (!itemKind && selectedItem.dataset && selectedItem.dataset.kind) {
+                    itemKind = String(selectedItem.dataset.kind).trim();
+                }
+                
+                // Se ainda não encontrou, tenta acessar diretamente
+                if (!itemKind && selectedItem.hasAttribute && selectedItem.hasAttribute("data-kind")) {
+                    itemKind = selectedItem.getAttribute("data-kind")?.trim();
+                }
+                
+                if (itemKind === "folder" || itemKind === "file") {
                     renameButton.disabled = false;
                 } else {
                     renameButton.disabled = true;
@@ -178,6 +194,43 @@
         }
 
         /**
+         * Obtém a lista de nomes de arquivos existentes no diretório atual.
+         * 
+         * Busca todos os elementos com data-kind="file" e extrai
+         * seus nomes para validação de duplicação.
+         * 
+         * @returns {Array<string>} Array com os nomes dos arquivos
+         *                          existentes (em minúsculas)
+         */
+        function getExistingFileNames() {
+            const fileItems = document.querySelectorAll(
+                '[data-kind="file"]'
+            );
+            const fileNames = [];
+            
+            fileItems.forEach(function (item) {
+                // O nome do arquivo está no segundo span dentro do item
+                // Estrutura: <span><span>📄</span><span>Nome</span></span>
+                // Busca todos os spans aninhados
+                const allSpans = item.querySelectorAll("span span");
+                
+                if (allSpans.length >= 2) {
+                    // Pega o último span que contém o nome do arquivo
+                    const nameSpan = allSpans[allSpans.length - 1];
+                    const fileName = nameSpan.textContent.trim();
+                    
+                    // Normaliza o nome para comparação (minúsculas)
+                    if (fileName) {
+                        const normalized = fileName.toLowerCase();
+                        fileNames.push(normalized);
+                    }
+                }
+            });
+            
+            return fileNames;
+        }
+
+        /**
          * Valida se o nome da pasta já existe no diretório atual.
          * 
          * @param {string} folderName - Nome da pasta a ser validado
@@ -194,6 +247,35 @@
             const normalizedName = folderName.trim().toLowerCase();
             
             // Se há um nome para excluir (ex: nome atual da pasta sendo renomeada),
+            // remove-o da lista antes de verificar
+            if (excludeName) {
+                const normalizedExclude = excludeName.trim().toLowerCase();
+                const index = existingNames.indexOf(normalizedExclude);
+                if (index > -1) {
+                    existingNames.splice(index, 1);
+                }
+            }
+            
+            return existingNames.includes(normalizedName);
+        }
+
+        /**
+         * Valida se o nome do arquivo já existe no diretório atual.
+         * 
+         * @param {string} fileName - Nome do arquivo a ser validado
+         * @param {string} excludeName - Nome a ser excluído da validação (opcional)
+         * @returns {boolean} true se o nome já existe, false caso
+         *                   contrário
+         */
+        function fileNameExists(fileName, excludeName = null) {
+            if (!fileName || !fileName.trim()) {
+                return false;
+            }
+            
+            const existingNames = getExistingFileNames();
+            const normalizedName = fileName.trim().toLowerCase();
+            
+            // Se há um nome para excluir (ex: nome atual do arquivo sendo renomeado),
             // remove-o da lista antes de verificar
             if (excludeName) {
                 const normalizedExclude = excludeName.trim().toLowerCase();
@@ -607,7 +689,7 @@
 
 
         // ====================================================================
-        // BOTÃO DE RENOMEAR ITEM (PASTA)
+        // BOTÃO DE RENOMEAR ITEM SELECIONADO (PASTA/ARQUIVO)
         // ====================================================================
 
         /**
@@ -633,8 +715,9 @@
             // Referência ao elemento de erro do modal de renomear
             const renameErrorElement = document.getElementById("rename-error");
             
-            // Variável para armazenar o nome atual da pasta sendo renomeada
-            let currentFolderName = "";
+            // Variáveis para armazenar o nome atual e tipo do item sendo renomeado
+            let currentItemName = "";
+            let currentItemKind = "";
 
             /**
              * Inicializa a validação do formulário de renomear
@@ -659,18 +742,27 @@
                         }
 
                         // Se o nome for igual ao atual, não há erro
-                        if (newName.toLowerCase() === currentFolderName.toLowerCase()) {
+                        if (newName.toLowerCase() === currentItemName.toLowerCase()) {
                             hideErrorMessage(renameErrorElement);
                             return;
                         }
 
-                        // Verifica se o nome já existe (excluindo o nome atual)
-                        if (folderNameExists(newName, currentFolderName)) {
-                            showErrorMessage(
-                                renameErrorElement,
-                                "Já existe uma pasta com esse nome " +
-                                "nesse diretório."
-                            );
+                        // Verifica se o nome já existe baseado no tipo do item
+                        let nameExists = false;
+                        let errorMessage = "";
+
+                        if (currentItemKind === "folder") {
+                            nameExists = folderNameExists(newName, currentItemName);
+                            errorMessage = "Já existe uma pasta com esse nome " +
+                                         "nesse diretório.";
+                        } else if (currentItemKind === "file") {
+                            nameExists = fileNameExists(newName, currentItemName);
+                            errorMessage = "Já existe um arquivo com esse nome " +
+                                         "nesse diretório.";
+                        }
+
+                        if (nameExists) {
+                            showErrorMessage(renameErrorElement, errorMessage);
                         } else {
                             hideErrorMessage(renameErrorElement);
                         }
@@ -694,18 +786,28 @@
                         }
 
                         // Se o nome for igual ao atual, permite submissão
-                        if (newName.toLowerCase() === currentFolderName.toLowerCase()) {
+                        if (newName.toLowerCase() === currentItemName.toLowerCase()) {
                             return;
                         }
 
+                        // Verifica se o nome já existe baseado no tipo do item
+                        let nameExists = false;
+                        let errorMessage = "";
+
+                        if (currentItemKind === "folder") {
+                            nameExists = folderNameExists(newName, currentItemName);
+                            errorMessage = "Já existe uma pasta com esse nome " +
+                                         "nesse diretório.";
+                        } else if (currentItemKind === "file") {
+                            nameExists = fileNameExists(newName, currentItemName);
+                            errorMessage = "Já existe um arquivo com esse nome " +
+                                         "nesse diretório.";
+                        }
+
                         // Se o nome já existe, previne a submissão
-                        if (folderNameExists(newName, currentFolderName)) {
+                        if (nameExists) {
                             event.preventDefault();
-                            showErrorMessage(
-                                renameErrorElement,
-                                "Já existe uma pasta com esse nome " +
-                                "nesse diretório."
-                            );
+                            showErrorMessage(renameErrorElement, errorMessage);
                             // Foca no campo para facilitar correção
                             renameInput.focus();
                             renameInput.select();
@@ -724,23 +826,38 @@
                 event.preventDefault();
                 if (!selectedItem) return;
 
-                const kind = selectedItem.dataset.kind;
-                const id = selectedItem.dataset.id;
+                const kind = selectedItem.getAttribute("data-kind") || selectedItem.dataset?.kind;
+                const id = selectedItem.getAttribute("data-id") || selectedItem.dataset?.id;
                 
-                // Só permite renomear pastas
-                if (kind !== "folder" || !id) return;
+                // Permite renomear pastas e arquivos
+                if ((kind !== "folder" && kind !== "file") || !id) return;
 
                 // Preenche o campo com o nome atual
-                currentFolderName = getSelectedItemName();
-                renameInput.value = currentFolderName;
+                currentItemName = getSelectedItemName();
+                currentItemKind = kind;
+                renameInput.value = currentItemName;
+                
+                // Atualiza o título do modal baseado no tipo
+                const renameTitle = document.getElementById("rename-title");
+                if (renameTitle) {
+                    if (kind === "folder") {
+                        renameTitle.textContent = "Renomear pasta";
+                    } else if (kind === "file") {
+                        renameTitle.textContent = "Renomear arquivo";
+                    }
+                }
                 
                 // Limpa mensagem de erro ao abrir o modal
                 if (renameErrorElement) {
                     hideErrorMessage(renameErrorElement);
                 }
                 
-                // Define a action do formulário
-                renameForm.action = `/rename-folder/${id}/`;
+                // Define a action do formulário baseado no tipo
+                if (kind === "folder") {
+                    renameForm.action = `/rename-folder/${id}/`;
+                } else if (kind === "file") {
+                    renameForm.action = `/rename-file/${id}/`;
+                }
                 
                 // Inicializa a validação
                 initializeRenameValidation();
@@ -760,7 +877,8 @@
                 renameCancelButton.addEventListener("click", () => {
                     renameModal.close();
                     renameInput.value = "";
-                    currentFolderName = "";
+                    currentItemName = "";
+                    currentItemKind = "";
                     if (renameErrorElement) {
                         hideErrorMessage(renameErrorElement);
                     }
@@ -773,7 +891,8 @@
                 if (event.target === renameModal) {
                     renameModal.close();
                     renameInput.value = "";
-                    currentFolderName = "";
+                    currentItemName = "";
+                    currentItemKind = "";
                     if (renameErrorElement) {
                         hideErrorMessage(renameErrorElement);
                     }
@@ -785,7 +904,8 @@
                 if (event.key === "Escape") {
                     renameModal.close();
                     renameInput.value = "";
-                    currentFolderName = "";
+                    currentItemName = "";
+                    currentItemKind = "";
                     if (renameErrorElement) {
                         hideErrorMessage(renameErrorElement);
                     }

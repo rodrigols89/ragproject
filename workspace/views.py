@@ -982,3 +982,58 @@ def rename_folder(request, folder_id):
         f"Pasta renomeada para '{new_name}'."
     )
     return redirect(next_url)
+
+
+@login_required(login_url="/")
+def rename_file(request, file_id):
+    """
+    View para renomear arquivo.
+
+    Valida o novo nome e verifica duplicação no mesmo diretório.
+
+    Args:
+        request: Objeto HttpRequest do Django
+        file_id: ID do arquivo a ser renomeado
+
+    Returns:
+        HttpResponseRedirect: Redireciona após renomeação
+    """
+    file = get_object_or_404(
+        File,
+        id=file_id,
+        uploader=request.user,
+        is_deleted=False
+    )
+
+    if request.method != "POST":
+        return redirect("workspace_home")
+
+    new_name = request.POST.get("name", "").strip()
+    next_url = request.POST.get("next", "workspace_home")
+
+    if not new_name:
+        messages.error(
+            request,
+            "O nome do arquivo não pode ser vazio."
+        )
+        return redirect(next_url)
+
+    if File.objects.filter(
+        uploader=request.user,
+        folder=file.folder,
+        name__iexact=new_name,
+        is_deleted=False,
+    ).exclude(id=file.id).exists():
+        messages.error(
+            request,
+            "Já existe um arquivo com esse nome neste diretório."
+        )
+        return redirect(next_url)
+
+    file.name = new_name
+    file.save()
+    messages.success(
+        request,
+        f"Arquivo renomeado para '{new_name}'."
+    )
+    return redirect(next_url)

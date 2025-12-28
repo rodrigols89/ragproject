@@ -38,4 +38,9 @@ urlpatterns = [
         view=views.rename_folder,
         name="rename_folder"
     ),
+    path(
+        route="rename-file/<int:file_id>/",
+        view=views.rename_file,
+        name="rename_file"
+    ),
 ]
