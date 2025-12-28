@@ -18,4 +18,9 @@ urlpatterns = [
         view=views.upload_file,
         name="upload_file"
     ),
+    path(
+        route="upload-folder/",
+        view=views.upload_folder,
+        name="upload_folder"
+    ),
 ]

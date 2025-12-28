@@ -441,5 +441,67 @@
             }
         });
 
+        // ============================================================
+        // UPLOAD DE PASTA
+        // ============================================================
+
+        /**
+         * Processa o upload de uma pasta inteira.
+         * 
+         * Quando o usuário seleciona uma pasta usando o input com
+         * webkitdirectory, extrai os caminhos relativos dos arquivos
+         * e preenche os campos necessários antes de submeter o formulário.
+         */
+        const folderInput = document.getElementById("folder_input");
+        const uploadFolderForm = document.getElementById("upload_folder_form");
+        const filePathsInput = document.getElementById("file_paths_json");
+        const detectedFolderNameInput = document.getElementById("detected_folder_name");
+
+        if (folderInput && uploadFolderForm && filePathsInput && detectedFolderNameInput) {
+            folderInput.addEventListener("change", function(event) {
+                const files = event.target.files;
+                
+                if (!files || files.length === 0) {
+                    return;
+                }
+
+                // Fecha o dropdown de upload
+                if (uploadMenu) {
+                    uploadMenu.classList.add("hidden");
+                }
+
+                // Extrai os caminhos relativos dos arquivos
+                const filePaths = [];
+                let folderName = null;
+
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    // webkitRelativePath contém o caminho relativo da pasta selecionada
+                    const relativePath = file.webkitRelativePath || file.name;
+                    filePaths.push(relativePath);
+
+                    // Extrai o nome da pasta raiz (primeiro diretório do caminho)
+                    if (!folderName && relativePath.includes("/")) {
+                        const pathParts = relativePath.split("/");
+                        if (pathParts.length > 0 && pathParts[0].trim()) {
+                            folderName = pathParts[0].trim();
+                        }
+                    }
+                }
+
+                // Se não conseguiu detectar o nome da pasta, usa um nome padrão
+                if (!folderName) {
+                    folderName = "Pasta Upload";
+                }
+
+                // Preenche os campos ocultos do formulário
+                filePathsInput.value = JSON.stringify(filePaths);
+                detectedFolderNameInput.value = folderName;
+
+                // Submete o formulário
+                uploadFolderForm.submit();
+            });
+        }
+
     }); // DOMContentLoaded
 })(); // IIFE

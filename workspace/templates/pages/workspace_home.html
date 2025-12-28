@@ -235,7 +235,7 @@
                 <!-- Formulário para upload de pasta -->
                 <form method="post"
                       id="upload_folder_form"
-                      action=""
+                      action="{% url 'upload_folder' %}"
                       enctype="multipart/form-data"
                       class="hidden">
                     {% csrf_token %}
@@ -254,7 +254,7 @@
                         webkitdirectory 
                         directory 
                         multiple 
-                        class="hidden" 
+                        class="hidden"
                         required>
                     <input 
                         type="hidden" 
