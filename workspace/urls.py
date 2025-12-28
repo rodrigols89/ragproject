@@ -23,4 +23,9 @@ urlpatterns = [
         view=views.upload_folder,
         name="upload_folder"
     ),
+    path(
+        route="delete-file/<int:file_id>/",
+        view=views.delete_file,
+        name="delete_file"
+    ),
 ]

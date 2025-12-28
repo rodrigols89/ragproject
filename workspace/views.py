@@ -848,3 +848,41 @@ def upload_folder(request):
     _handle_upload_results(results)
 
     return redirect(next_url)
+
+
+@login_required(login_url="/")
+def delete_file(request, file_id):
+    """
+    View para exclusão de arquivo (soft delete).
+
+    Marca o arquivo como deletado sem removê-lo fisicamente do banco.
+    Retorna para a pasta onde estava ou para a raiz.
+
+    Args:
+        request: Objeto HttpRequest do Django
+        file_id: ID do arquivo a ser deletado
+
+    Returns:
+        HttpResponseRedirect: Redireciona após exclusão
+    """
+    file = get_object_or_404(
+        File,
+        id=file_id,
+        uploader=request.user
+    )
+
+    folder = file.folder
+
+    file.is_deleted = True
+    file.deleted_at = timezone.now()
+    file.save()
+
+    messages.success(
+        request,
+        f"Arquivo '{file.name}' movido para a lixeira."
+    )
+
+    if folder:
+        return redirect(f"/workspace?folder={folder.id}")
+
+    return redirect("workspace_home")

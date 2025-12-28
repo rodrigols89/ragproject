@@ -277,6 +277,32 @@
 
 
 
+                <!-- 📌 Botão de Remover Itens Selecionados -->
+                <button
+                    id="delete_selected"
+                    class="
+                        inline-block
+                        bg-red-600
+                        hover:bg-red-700
+                        text-white
+                        px-4
+                        py-2
+                        rounded
+                        disabled:opacity-50
+                        disabled:cursor-not-allowed"
+                        disabled>
+                    🗑 Remover
+                </button> <!-- 📌 /Botão de Remover Itens Selecionados -->
+
+                <!-- Formulário para remoção de itens -->
+                <form
+                    id="delete_form"
+                    method="post"
+                    class="hidden">
+                    {% csrf_token %}
+                </form> <!-- Formulário para remoção de itens -->
+
+
 
 
 

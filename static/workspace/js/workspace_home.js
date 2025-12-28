@@ -21,6 +21,23 @@
         const items = document.querySelectorAll(".selectable-item");
         let selectedItem = null;
 
+        // Referências ao botão e formulário de deletar
+        const deleteButton = document.getElementById("delete_selected");
+        const deleteForm = document.getElementById("delete_form");
+
+        /**
+         * Atualiza o estado do botão de remover baseado na seleção
+         */
+        function updateDeleteButton() {
+            if (!deleteButton) return;
+            
+            if (selectedItem) {
+                deleteButton.disabled = false;
+            } else {
+                deleteButton.disabled = true;
+            }
+        }
+
         /**
          * Remove seleção de todos os itens
          */
@@ -29,6 +46,7 @@
                 item.classList.remove("ring-2", "ring-blue-500");
             });
             selectedItem = null;
+            updateDeleteButton();
         }
 
         /**
@@ -38,6 +56,7 @@
             clearSelection();
             item.classList.add("ring-2", "ring-blue-500");
             selectedItem = item;
+            updateDeleteButton();
         }
 
         // Aplica eventos a cada item
@@ -68,7 +87,12 @@
         // Clique fora → limpa seleção
         document.addEventListener("click", function (event) {
             const clickedItem = event.target.closest(".selectable-item");
-            if (!clickedItem) {
+            // Não limpa seleção se clicar em botões ou formulários
+            const clickedButton = event.target.closest("button");
+            const clickedForm = event.target.closest("form");
+            const preserveSelection = event.target.closest("[data-preserve-selection]");
+            
+            if (!clickedItem && !clickedButton && !clickedForm && !preserveSelection) {
                 clearSelection();
             }
         });
@@ -79,6 +103,7 @@
                 clearSelection();
             }
         });
+
 
         // ============================================================
         // VALIDAÇÃO DO FORMULÁRIO DE CRIAÇÃO DE PASTA
@@ -259,6 +284,7 @@
                 );
             }
         }
+
 
         // ============================================================
         // SISTEMA DE COMANDOS PARA MODAIS
@@ -441,6 +467,7 @@
             }
         });
 
+
         // ============================================================
         // UPLOAD DE PASTA
         // ============================================================
@@ -502,6 +529,41 @@
                 uploadFolderForm.submit();
             });
         }
+
+
+        // ====================================================================
+        // BOTÃO DE DELETAR ITEM
+        // ====================================================================
+
+        if (deleteButton && deleteForm) {
+            deleteButton.addEventListener("click", (event) => {
+                event.preventDefault();
+                if (!selectedItem) return;
+
+                const kind = selectedItem.dataset.kind;
+                const id = selectedItem.dataset.id;
+                if (!kind || !id) return;
+
+                // Define a URL de ação baseada no tipo de item
+                let action = "";
+                if (kind === "folder") {
+                    // TODO: Implementar delete de pasta quando necessário
+                    alert("Remoção de pastas ainda não está implementada.");
+                    return;
+                } else if (kind === "file") {
+                    action = `/delete-file/${id}/`;
+                }
+
+                // Submete o formulário com a ação correta
+                if (action) {
+                    deleteForm.action = action;
+                    deleteForm.submit();
+                }
+            });
+        }
+
+        // Inicializa o estado do botão ao carregar a página
+        updateDeleteButton();
 
     }); // DOMContentLoaded
 })(); // IIFE
