@@ -105,17 +105,27 @@
             updateRenameButton();
         }
 
+        // Variável para rastrear se um drag está em andamento
+        let isDragging = false;
+
         // Aplica eventos a cada item
         items.forEach(item => {
 
             // Clique simples → seleciona
             item.addEventListener("click", function (event) {
+                // Não previne o comportamento padrão se um drag acabou de ocorrer
+                if (isDragging) {
+                    isDragging = false;
+                    return;
+                }
                 event.preventDefault();
                 selectItem(item);
             });
 
             // Duplo clique → navega
             item.addEventListener("dblclick", function () {
+                if (isDragging) return;
+                
                 const url = item.dataset.url;
                 const target = item.dataset.target || "_self";
 
@@ -912,6 +922,282 @@
                 }
             });
         }
+
+        // ====================================================================
+        // DRAG AND DROP - MOVER ARQUIVOS E PASTAS
+        // ====================================================================
+
+        /**
+         * Obtém o endpoint para mover itens
+         */
+        function getMoveEndpoint() {
+            const configElement = document.querySelector('[data-workspace-config]');
+            if (configElement) {
+                return configElement.getAttribute('data-move-endpoint') || '/move-item/';
+            }
+            return '/move-item/';
+        }
+
+        /**
+         * Obtém o CSRF token do Django
+         */
+        function getCsrfToken() {
+            // Tenta obter do input hidden primeiro
+            const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrfInput) {
+                return csrfInput.value;
+            }
+            
+            // Tenta obter do cookie
+            const name = 'csrftoken';
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        /**
+         * Move um item (arquivo ou pasta) para uma pasta de destino
+         */
+        function moveItem(itemType, itemId, targetFolderId) {
+            const endpoint = getMoveEndpoint();
+            const formData = new FormData();
+            formData.append('item_type', itemType);
+            formData.append('item_id', itemId);
+            if (targetFolderId) {
+                formData.append('target_folder', targetFolderId);
+            }
+
+            // Obtém o CSRF token
+            const csrfToken = getCsrfToken();
+            if (csrfToken) {
+                formData.append('csrfmiddlewaretoken', csrfToken);
+            }
+
+            return fetch(endpoint, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                return data;
+            });
+        }
+
+        /**
+         * Remove todas as classes de highlight de drag
+         */
+        function clearDragHighlights() {
+            // Remove highlight de pastas
+            document.querySelectorAll('.selectable-item[data-kind="folder"]').forEach(item => {
+                item.classList.remove('drag-over');
+            });
+            // Remove highlight de breadcrumbs
+            document.querySelectorAll('.breadcrumb-drop').forEach(item => {
+                item.classList.remove('drag-over');
+            });
+        }
+
+        /**
+         * Inicializa o sistema de drag and drop
+         */
+        function initializeDragAndDrop() {
+            const draggableItems = document.querySelectorAll('.selectable-item[draggable="true"]');
+            const dropTargets = document.querySelectorAll('.selectable-item[data-kind="folder"]');
+            const breadcrumbTargets = document.querySelectorAll('.breadcrumb-drop');
+
+            // Configura os itens arrastáveis
+            draggableItems.forEach(item => {
+                item.addEventListener('dragstart', function(e) {
+                    const itemKind = item.getAttribute('data-kind');
+                    const itemId = item.getAttribute('data-id');
+                    
+                    if (!itemKind || !itemId) {
+                        e.preventDefault();
+                        return;
+                    }
+
+                    // Marca que um drag está em andamento
+                    isDragging = true;
+
+                    // Armazena os dados do item sendo arrastado
+                    e.dataTransfer.setData('text/plain', JSON.stringify({
+                        kind: itemKind,
+                        id: itemId
+                    }));
+                    
+                    // Adiciona classe visual ao item sendo arrastado
+                    item.classList.add('dragging');
+                    
+                    // Define o efeito de arrastar
+                    e.dataTransfer.effectAllowed = 'move';
+                });
+
+                item.addEventListener('dragend', function(e) {
+                    // Remove classe visual
+                    item.classList.remove('dragging');
+                    // Limpa highlights
+                    clearDragHighlights();
+                    // Reseta a flag após um pequeno delay para evitar conflito com click
+                    setTimeout(() => {
+                        isDragging = false;
+                    }, 100);
+                });
+            });
+
+            // Configura as pastas como destinos de drop
+            dropTargets.forEach(target => {
+                target.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Verifica se o item sendo arrastado não é a própria pasta
+                    const draggedData = e.dataTransfer.getData('text/plain');
+                    if (!draggedData) return;
+                    
+                    try {
+                        const dragged = JSON.parse(draggedData);
+                        const targetId = target.getAttribute('data-id');
+                        
+                        // Não permite arrastar uma pasta para ela mesma
+                        if (dragged.kind === 'folder' && dragged.id === targetId) {
+                            e.dataTransfer.dropEffect = 'none';
+                            return;
+                        }
+                        
+                        e.dataTransfer.dropEffect = 'move';
+                        target.classList.add('drag-over');
+                    } catch (err) {
+                        // Ignora erros de parsing
+                    }
+                });
+
+                target.addEventListener('dragleave', function(e) {
+                    // Remove highlight apenas se realmente saiu do elemento
+                    if (!target.contains(e.relatedTarget)) {
+                        target.classList.remove('drag-over');
+                    }
+                });
+
+                target.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    target.classList.remove('drag-over');
+                    
+                    const draggedData = e.dataTransfer.getData('text/plain');
+                    if (!draggedData) return;
+                    
+                    try {
+                        const dragged = JSON.parse(draggedData);
+                        const targetId = target.getAttribute('data-id');
+                        
+                        // Não permite arrastar uma pasta para ela mesma
+                        if (dragged.kind === 'folder' && dragged.id === targetId) {
+                            return;
+                        }
+                        
+                        // Move o item
+                        moveItem(dragged.kind, dragged.id, targetId)
+                            .then(() => {
+                                // Recarrega a página para atualizar a visualização
+                                window.location.reload();
+                            })
+                            .catch(error => {
+                                alert('Erro ao mover item: ' + error.message);
+                            });
+                    } catch (err) {
+                        console.error('Erro ao processar drop:', err);
+                    }
+                });
+            });
+
+            // Configura os breadcrumbs como destinos de drop
+            breadcrumbTargets.forEach(target => {
+                target.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    const draggedData = e.dataTransfer.getData('text/plain');
+                    if (!draggedData) return;
+                    
+                    try {
+                        const dragged = JSON.parse(draggedData);
+                        const targetFolderId = target.getAttribute('data-folder-id');
+                        
+                        // Não permite arrastar uma pasta para ela mesma ou seus descendentes
+                        // (isso será validado no backend, mas fazemos uma verificação básica aqui)
+                        if (dragged.kind === 'folder' && dragged.id === targetFolderId) {
+                            e.dataTransfer.dropEffect = 'none';
+                            return;
+                        }
+                        
+                        e.dataTransfer.dropEffect = 'move';
+                        target.classList.add('drag-over');
+                    } catch (err) {
+                        // Ignora erros de parsing
+                    }
+                });
+
+                target.addEventListener('dragleave', function(e) {
+                    // Remove highlight apenas se realmente saiu do elemento
+                    if (!target.contains(e.relatedTarget)) {
+                        target.classList.remove('drag-over');
+                    }
+                });
+
+                target.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    target.classList.remove('drag-over');
+                    
+                    const draggedData = e.dataTransfer.getData('text/plain');
+                    if (!draggedData) return;
+                    
+                    try {
+                        const dragged = JSON.parse(draggedData);
+                        const targetFolderId = target.getAttribute('data-folder-id');
+                        
+                        // Não permite arrastar uma pasta para ela mesma
+                        if (dragged.kind === 'folder' && dragged.id === targetFolderId) {
+                            return;
+                        }
+                        
+                        // Move o item (targetFolderId pode ser vazio para raiz)
+                        const folderId = targetFolderId && targetFolderId.trim() !== '' ? targetFolderId : null;
+                        
+                        moveItem(dragged.kind, dragged.id, folderId)
+                            .then(() => {
+                                // Recarrega a página para atualizar a visualização
+                                window.location.reload();
+                            })
+                            .catch(error => {
+                                alert('Erro ao mover item: ' + error.message);
+                            });
+                    } catch (err) {
+                        console.error('Erro ao processar drop:', err);
+                    }
+                });
+            });
+        }
+
+        // Inicializa o drag and drop
+        initializeDragAndDrop();
 
     }); // DOMContentLoaded
 })(); // IIFE

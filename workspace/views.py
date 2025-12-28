@@ -9,6 +9,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -1037,3 +1038,135 @@ def rename_file(request, file_id):
         f"Arquivo renomeado para '{new_name}'."
     )
     return redirect(next_url)
+
+
+def _is_descendant(folder, potential_parent):
+    """
+    Helper para evitar mover uma pasta para ela mesma ou seus filhos.
+
+    Verifica se a pasta potencial pai é descendente da pasta atual,
+    o que criaria um ciclo na hierarquia.
+
+    Args:
+        folder: Pasta que está sendo movida
+        potential_parent: Pasta que seria o novo pai
+
+    Returns:
+        bool: True se potential_parent é descendente de folder
+    """
+    current = potential_parent
+    while current:
+        if current == folder:
+            return True
+        current = current.parent
+    return False
+
+
+@login_required(login_url="/")
+def move_item(request):  # noqa: PLR0911
+    """
+    View para mover pastas ou arquivos (via AJAX).
+
+    Suporta mover itens entre pastas ou para a raiz.
+    Retorna JSON para requisições AJAX.
+
+    Args:
+        request: Objeto HttpRequest do Django
+
+    Returns:
+        JsonResponse: Resposta JSON com sucesso ou erro
+    """
+    if request.method != "POST":
+        return JsonResponse(
+            {"error": "Método inválido."},
+            status=405
+        )
+
+    item_type = request.POST.get("item_type")
+    item_id = request.POST.get("item_id")
+    target_folder_id = request.POST.get("target_folder") or None
+
+    if not item_type or not item_id:
+        return JsonResponse(
+            {"error": "Dados insuficientes para mover o item."},
+            status=400
+        )
+
+    target_folder = None
+    if target_folder_id:
+        target_folder = get_object_or_404(
+            Folder,
+            id=target_folder_id,
+            owner=request.user,
+            is_deleted=False,
+        )
+
+    if item_type == "folder":
+        folder = get_object_or_404(
+            Folder,
+            id=item_id,
+            owner=request.user,
+            is_deleted=False,
+        )
+
+        if target_folder and _is_descendant(folder, target_folder):
+            error_message = (
+                "Não é possível mover a pasta para dentro dela mesma."
+            )
+            return JsonResponse(
+                {"error": error_message},
+                status=400,
+            )
+
+        # Verifica se já existe uma pasta com o mesmo nome no destino
+        if Folder.objects.filter(
+            owner=request.user,
+            parent=target_folder,
+            name__iexact=folder.name,
+            is_deleted=False,
+        ).exclude(id=folder.id).exists():
+            error_message = (
+                f"Já existe uma pasta com o nome '{folder.name}' "
+                "no diretório de destino."
+            )
+            return JsonResponse(
+                {"error": error_message},
+                status=400,
+            )
+
+        folder.parent = target_folder
+        folder.save()
+        return JsonResponse({"success": True})
+
+    elif item_type == "file":
+        file = get_object_or_404(
+            File,
+            id=item_id,
+            uploader=request.user,
+            is_deleted=False,
+        )
+
+        # Verifica se já existe um arquivo com o mesmo nome no destino
+        if File.objects.filter(
+            uploader=request.user,
+            folder=target_folder,
+            name__iexact=file.name,
+            is_deleted=False,
+        ).exclude(id=file.id).exists():
+            error_message = (
+                f"Já existe um arquivo com o nome '{file.name}' "
+                "no diretório de destino."
+            )
+            return JsonResponse(
+                {"error": error_message},
+                status=400,
+            )
+
+        file.folder = target_folder
+        file.save()
+        return JsonResponse({"success": True})
+
+    return JsonResponse(
+        {"error": "Tipo de item inválido."},
+        status=400
+    )

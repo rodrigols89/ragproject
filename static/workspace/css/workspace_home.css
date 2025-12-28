@@ -1,0 +1,28 @@
+/* Estilos para drag and drop */
+.selectable-item.dragging {
+    opacity: 0.5;
+    cursor: move;
+}
+
+.selectable-item[data-kind="folder"].drag-over {
+    background-color: #dbeafe !important;
+    border-color: #3b82f6 !important;
+    border-width: 2px;
+    transform: scale(1.02);
+}
+
+.breadcrumb-drop.drag-over {
+    background-color: #dbeafe !important;
+    padding: 2px 4px;
+    border-radius: 4px;
+    text-decoration: underline;
+}
+
+.selectable-item[draggable="true"] {
+    cursor: grab;
+}
+
+.selectable-item[draggable="true"]:active {
+    cursor: grabbing;
+}
+

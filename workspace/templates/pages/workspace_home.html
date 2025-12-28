@@ -1,16 +1,32 @@
 {% extends "base.html" %}
 {% load static %}
 
+
 {% block title %}Workspace{% endblock %}
 
+
+{% block head %}
+    <link
+        rel="stylesheet"
+        href="{% static 'workspace/css/workspace_home.css' %}">
+{% endblock head %}
+
+
 {% block content %}
+    <!-- Container principal -->
     <div class="flex h-screen bg-gray-100">
+
+
 
         <!-- 🧱 Sidebar -->
         {% include "partials/sidebar.html" with current_page="workspace" %}
 
+
+
         <!-- 💼 Área principal do Workspace -->
         <main class="flex-1 p-8 overflow-y-auto">
+
+
 
             <!-- Header -->
             <header class="bg-white shadow px-6 py-4">
@@ -18,6 +34,7 @@
                     Bem-vindo, {{ request.user.username }}!
                 </h1>
             </header>
+
 
 
             <!-- 🧭 Breadcrumbs -->
@@ -74,6 +91,7 @@
             </nav> <!-- 🧭 Breadcrumbs -->
 
 
+
             <!-- Mensagens -->
             {% if messages %}
                 <ul class="mb-4">
@@ -90,20 +108,10 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
             <!-- 📌 Botões -->
             <div class="mb-6 flex items-center gap-3 flex-wrap" data-preserve-selection="true">
+
+
 
                 <!-- 📌 Botão de Criar Pasta -->
                 <button
@@ -118,27 +126,6 @@
                             rounded">
                     ➕ Nova Pasta
                 </button> <!-- 📌 /Botão de Criar Pasta -->
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -202,6 +189,8 @@
                     </div>
                 </div> <!-- /Dropdown de Upload (Botão de Upload) -->
 
+
+
                 <!-- Formulário para upload de arquivo -->
                 <form method="post"
                       id="upload_file_form"
@@ -231,6 +220,8 @@
                         class="hidden" 
                         onchange="this.form.submit()">
                 </form> <!-- /Formulário para upload de arquivo -->
+
+
 
                 <!-- Formulário para upload de pasta -->
                 <form method="post"
@@ -268,15 +259,6 @@
 
 
 
-
-
-
-
-
-
-
-
-
                 <!-- 📌 Botão de Remover Itens Selecionados -->
                 <button
                     id="delete_selected"
@@ -294,6 +276,8 @@
                     🗑 Remover
                 </button> <!-- 📌 /Botão de Remover Itens Selecionados -->
 
+
+
                 <!-- Formulário para remoção de itens -->
                 <form
                     id="delete_form"
@@ -301,25 +285,6 @@
                     class="hidden">
                     {% csrf_token %}
                 </form> <!-- Formulário para remoção de itens -->
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -339,6 +304,8 @@
                         disabled>
                     ✏ Renomear
                 </button> <!-- 📌 /Botão de Renomear Item Selecionado -->
+
+
 
                 <!-- MODAL Renomear Item -->
                 <dialog
@@ -375,9 +342,7 @@
                                 sm:max-w-md
                                 p-6">
                             <form id="rename_form" method="post">
-
                                 {% csrf_token %}
-
                                 <input
                                     type="hidden"
                                     name="next"
@@ -459,101 +424,7 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
             </div> <!-- 📌 /Botões -->
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -701,75 +572,13 @@
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
             <!-- 📁 Listagem de pastas e arquivos -->
             {% if folders or files %}
 
+                <!-- Lista de pastas e arquivos -->
                 <ul class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+
+
 
                     <!-- Pastas -->
                     {% for folder in folders %}
@@ -798,7 +607,9 @@
                                     </span>
                                 </div>
                         </li>
-                    {% endfor %}
+                    {% endfor %} <!-- 📁 /Pastas -->
+
+
 
                     <!-- Arquivos -->
                     {% for file in files %}
@@ -828,80 +639,27 @@
                                     </span>
                                 </div>
                         </li>
-                    {% endfor %}
+                    {% endfor %} <!-- 📁 /Arquivos -->
 
-                </ul>
+                </ul> <!-- 📁 /Lista de pastas e arquivos -->
+
+            <!-- Else - Se não houver pastas ou arquivos -->
             {% else %}
                 <p class="pt-4 text-gray-500 italic">
                     Nenhum item encontrado neste diretório.
                 </p>
-            {% endif %} <!-- 📁 /Listagem de pastas e arquivos -->
+            {% endif %} <!-- /else - Se não houver pastas ou arquivos -->
 
 
 
+        </main> <!-- Área principal do Workspace -->
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        </main>
-    </div>
+    </div> <!-- /Container principal -->
 {% endblock %}
+
+
 {% block scripts %}
     <script src="{% static 'workspace/js/workspace_home.js' %}"></script>
 {% endblock scripts %}

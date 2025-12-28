@@ -43,4 +43,9 @@ urlpatterns = [
         view=views.rename_file,
         name="rename_file"
     ),
+    path(
+        route="move-item/",
+        view=views.move_item,
+        name="move_item"
+    ),
 ]
