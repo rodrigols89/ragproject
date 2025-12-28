@@ -82,6 +82,7 @@ sudo chmod -R 755 ./static ./media ./staticfiles
 """
 # ------------------ ( Docker Management ) ------------------
 start_compose = 'docker compose up -d'
+down_compose = 'docker compose down'
 restart_compose = 'docker restart $(docker ps -q)'
 build_compose = 'docker compose up --build -d'
 clean_compose = """
