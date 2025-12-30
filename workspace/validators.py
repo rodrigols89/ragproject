@@ -44,8 +44,7 @@ def validate_file_type(uploaded_file):
 
     if ext not in ALLOWED_EXTENSIONS:
         msg = (
-            f"Arquivo inválido: '{uploaded_file.name}'. "
-            f"O formato '{ext}' não é permitido. "
+            f"Arquivo '{uploaded_file.name}' inválido. "
             f"Apenas {ALLOWED_FORMATTED} são aceitos."
         )
         raise ValidationError(msg)

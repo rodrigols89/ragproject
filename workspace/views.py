@@ -285,11 +285,8 @@ def _validate_uploaded_file(uploaded_file):
         validate_file(uploaded_file)
         return None
     except Exception as e:
-        if hasattr(e, '__str__'):
-            error_message = str(e)
-        else:
-            error_message = getattr(e, 'message', 'Erro desconhecido')
-        return f"{uploaded_file.name}: {error_message}"
+        error_message = _extract_error_message(e)  # ✅ Remove os colchetes
+        return error_message  # ✅ Retorna apenas a mensagem, sem prefixo
 
 
 def _generate_unique_filename(user, folder, original_name):
