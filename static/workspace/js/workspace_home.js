@@ -164,159 +164,14 @@
         // ============================================================
         // VALIDAÇÃO DO FORMULÁRIO DE CRIAÇÃO DE PASTA
         // ============================================================
-
-        /**
-         * Obtém a lista de nomes de pastas existentes no diretório
-         * atual.
-         * 
-         * Busca todos os elementos com data-kind="folder" e extrai
-         * seus nomes para validação de duplicação.
-         * 
-         * @returns {Array<string>} Array com os nomes das pastas
-         *                          existentes (em minúsculas)
-         */
-        function getExistingFolderNames() {
-            const folderItems = document.querySelectorAll(
-                '[data-kind="folder"]'
-            );
-            const folderNames = [];
-            
-            folderItems.forEach(function (item) {
-                // O nome da pasta está no segundo span dentro do item
-                // Estrutura: <span><span>📁</span><span>Nome</span></span>
-                // Busca todos os spans aninhados
-                const allSpans = item.querySelectorAll("span span");
-                
-                if (allSpans.length >= 2) {
-                    // Pega o último span que contém o nome da pasta
-                    const nameSpan = allSpans[allSpans.length - 1];
-                    const folderName = nameSpan.textContent.trim();
-                    
-                    // Normaliza o nome para comparação (minúsculas)
-                    if (folderName) {
-                        const normalized = folderName.toLowerCase();
-                        folderNames.push(normalized);
-                    }
-                }
-            });
-            
-            return folderNames;
-        }
-
-        /**
-         * Obtém a lista de nomes de arquivos existentes no diretório atual.
-         * 
-         * Busca todos os elementos com data-kind="file" e extrai
-         * seus nomes para validação de duplicação.
-         * 
-         * @returns {Array<string>} Array com os nomes dos arquivos
-         *                          existentes (em minúsculas)
-         */
-        function getExistingFileNames() {
-            const fileItems = document.querySelectorAll(
-                '[data-kind="file"]'
-            );
-            const fileNames = [];
-            
-            fileItems.forEach(function (item) {
-                // O nome do arquivo está no segundo span dentro do item
-                // Estrutura: <span><span>📄</span><span>Nome</span></span>
-                // Busca todos os spans aninhados
-                const allSpans = item.querySelectorAll("span span");
-                
-                if (allSpans.length >= 2) {
-                    // Pega o último span que contém o nome do arquivo
-                    const nameSpan = allSpans[allSpans.length - 1];
-                    const fileName = nameSpan.textContent.trim();
-                    
-                    // Normaliza o nome para comparação (minúsculas)
-                    if (fileName) {
-                        const normalized = fileName.toLowerCase();
-                        fileNames.push(normalized);
-                    }
-                }
-            });
-            
-            return fileNames;
-        }
-
-        /**
-         * Valida se o nome da pasta já existe no diretório atual.
-         * 
-         * @param {string} folderName - Nome da pasta a ser validado
-         * @param {string} excludeName - Nome a ser excluído da validação (opcional)
-         * @returns {boolean} true se o nome já existe, false caso
-         *                   contrário
-         */
-        function folderNameExists(folderName, excludeName = null) {
-            if (!folderName || !folderName.trim()) {
-                return false;
-            }
-            
-            const existingNames = getExistingFolderNames();
-            const normalizedName = folderName.trim().toLowerCase();
-            
-            // Se há um nome para excluir (ex: nome atual da pasta sendo renomeada),
-            // remove-o da lista antes de verificar
-            if (excludeName) {
-                const normalizedExclude = excludeName.trim().toLowerCase();
-                const index = existingNames.indexOf(normalizedExclude);
-                if (index > -1) {
-                    existingNames.splice(index, 1);
-                }
-            }
-            
-            return existingNames.includes(normalizedName);
-        }
-
-        /**
-         * Valida se o nome do arquivo já existe no diretório atual.
-         * 
-         * @param {string} fileName - Nome do arquivo a ser validado
-         * @param {string} excludeName - Nome a ser excluído da validação (opcional)
-         * @returns {boolean} true se o nome já existe, false caso
-         *                   contrário
-         */
-        function fileNameExists(fileName, excludeName = null) {
-            if (!fileName || !fileName.trim()) {
-                return false;
-            }
-            
-            const existingNames = getExistingFileNames();
-            const normalizedName = fileName.trim().toLowerCase();
-            
-            // Se há um nome para excluir (ex: nome atual do arquivo sendo renomeado),
-            // remove-o da lista antes de verificar
-            if (excludeName) {
-                const normalizedExclude = excludeName.trim().toLowerCase();
-                const index = existingNames.indexOf(normalizedExclude);
-                if (index > -1) {
-                    existingNames.splice(index, 1);
-                }
-            }
-            
-            return existingNames.includes(normalizedName);
-        }
-
-        /**
-         * Exibe a mensagem de erro no modal.
-         * 
-         * @param {HTMLElement} errorElement - Elemento que exibe o
-         *                                    erro
-         * @param {string} message - Mensagem de erro a ser exibida
-         */
-        function showErrorMessage(errorElement, message) {
-            if (!errorElement) return;
-            
-            errorElement.textContent = message;
-            errorElement.classList.remove("hidden");
-        }
+        // Nota: A validação de nomes duplicados é feita no backend
+        // (workspace/views.py). Esta seção apenas gerencia a exibição
+        // de mensagens de erro do servidor.
 
         /**
          * Remove a mensagem de erro do modal.
          * 
-         * @param {HTMLElement} errorElement - Elemento que exibe o
-         *                                    erro
+         * @param {HTMLElement} errorElement - Elemento que exibe o erro
          */
         function hideErrorMessage(errorElement) {
             if (!errorElement) return;
@@ -329,94 +184,6 @@
         const createFolderModal = document.getElementById(
             "create_folder_modal"
         );
-        
-        /**
-         * Função para inicializar a validação do formulário de pasta
-         */
-        function initializeFolderValidation() {
-            if (!createFolderModal) return;
-            
-            const folderNameInput = createFolderModal.querySelector(
-                "#folder_name"
-            );
-            const errorMessage = createFolderModal.querySelector(
-                "#server-error"
-            );
-            const createFolderForm = createFolderModal.querySelector(
-                "form"
-            );
-            
-            if (!folderNameInput || !errorMessage) return;
-            
-            // Remove listeners anteriores se existirem (usando clone)
-            // para evitar duplicação
-            const hasInputListener = folderNameInput.hasAttribute(
-                "data-validation-attached"
-            );
-            
-            if (!hasInputListener) {
-                // Validação em tempo real enquanto o usuário digita
-                folderNameInput.addEventListener("input", function () {
-                    const folderName = this.value.trim();
-                    
-                    // Se o campo estiver vazio, remove o erro
-                    if (!folderName) {
-                        hideErrorMessage(errorMessage);
-                        return;
-                    }
-                    
-                    // Verifica se o nome já existe
-                    if (folderNameExists(folderName)) {
-                        showErrorMessage(
-                            errorMessage,
-                            "Já existe uma pasta com esse nome " +
-                            "nesse diretório."
-                        );
-                    } else {
-                        hideErrorMessage(errorMessage);
-                    }
-                });
-                
-                folderNameInput.setAttribute(
-                    "data-validation-attached",
-                    "true"
-                );
-            }
-            
-            // Previne submissão do formulário se houver erro
-            if (createFolderForm && 
-                !createFolderForm.hasAttribute("data-submit-listener")) {
-                createFolderForm.addEventListener("submit", function (
-                    event
-                ) {
-                    const folderName = folderNameInput.value.trim();
-                    
-                    // Se o campo estiver vazio, permite validação
-                    // HTML5 padrão
-                    if (!folderName) {
-                        return;
-                    }
-                    
-                    // Se o nome já existe, previne a submissão
-                    if (folderNameExists(folderName)) {
-                        event.preventDefault();
-                        showErrorMessage(
-                            errorMessage,
-                            "Já existe uma pasta com esse nome " +
-                            "nesse diretório."
-                        );
-                        // Foca no campo para facilitar correção
-                        folderNameInput.focus();
-                        folderNameInput.select();
-                    }
-                });
-                
-                createFolderForm.setAttribute(
-                    "data-submit-listener",
-                    "true"
-                );
-            }
-        }
 
 
         // ============================================================
@@ -482,18 +249,10 @@
                     
                     if (inputField) {
                         inputField.value = "";
-                        // Dispara evento input para garantir validação
-                        inputField.dispatchEvent(new Event("input", {
-                            bubbles: true
-                        }));
                     }
                     if (errorMessage) {
-                        errorMessage.textContent = "";
-                        errorMessage.classList.add("hidden");
+                        hideErrorMessage(errorMessage);
                     }
-                    
-                    // Garante que a validação está inicializada
-                    setTimeout(initializeFolderValidation, 50);
                 }
                 
                 // Abre o modal usando a API nativa do HTML5
@@ -552,24 +311,9 @@
             }
         });
 
-        // Inicializa a validação quando o DOM estiver pronto
-        if (createFolderModal) {
-            // Aguarda um pouco para garantir que o DOM está completo
-            setTimeout(function () {
-                initializeFolderValidation();
-                
-                // Se o modal abre automaticamente (erro do servidor),
-                // garante que a validação esteja ativa
-                if (createFolderModal.hasAttribute("data-auto-open")) {
-                    // Abre o modal automaticamente
-                    createFolderModal.showModal();
-                    
-                    // Aguarda o modal abrir completamente
-                    setTimeout(function () {
-                        initializeFolderValidation();
-                    }, 300);
-                }
-            }, 100);
+        // Se o modal abre automaticamente (erro do servidor)
+        if (createFolderModal && createFolderModal.hasAttribute("data-auto-open")) {
+            createFolderModal.showModal();
         }
 
 
@@ -729,108 +473,6 @@
             let currentItemName = "";
             let currentItemKind = "";
 
-            /**
-             * Inicializa a validação do formulário de renomear
-             */
-            function initializeRenameValidation() {
-                if (!renameInput || !renameErrorElement) return;
-
-                // Remove listeners anteriores se existirem
-                const hasInputListener = renameInput.hasAttribute(
-                    "data-validation-attached"
-                );
-
-                if (!hasInputListener) {
-                    // Validação em tempo real enquanto o usuário digita
-                    renameInput.addEventListener("input", function () {
-                        const newName = this.value.trim();
-
-                        // Se o campo estiver vazio, remove o erro
-                        if (!newName) {
-                            hideErrorMessage(renameErrorElement);
-                            return;
-                        }
-
-                        // Se o nome for igual ao atual, não há erro
-                        if (newName.toLowerCase() === currentItemName.toLowerCase()) {
-                            hideErrorMessage(renameErrorElement);
-                            return;
-                        }
-
-                        // Verifica se o nome já existe baseado no tipo do item
-                        let nameExists = false;
-                        let errorMessage = "";
-
-                        if (currentItemKind === "folder") {
-                            nameExists = folderNameExists(newName, currentItemName);
-                            errorMessage = "Já existe uma pasta com esse nome " +
-                                         "nesse diretório.";
-                        } else if (currentItemKind === "file") {
-                            nameExists = fileNameExists(newName, currentItemName);
-                            errorMessage = "Já existe um arquivo com esse nome " +
-                                         "nesse diretório.";
-                        }
-
-                        if (nameExists) {
-                            showErrorMessage(renameErrorElement, errorMessage);
-                        } else {
-                            hideErrorMessage(renameErrorElement);
-                        }
-                    });
-
-                    renameInput.setAttribute(
-                        "data-validation-attached",
-                        "true"
-                    );
-                }
-
-                // Previne submissão do formulário se houver erro
-                if (renameForm && 
-                    !renameForm.hasAttribute("data-submit-listener")) {
-                    renameForm.addEventListener("submit", function (event) {
-                        const newName = renameInput.value.trim();
-
-                        // Se o campo estiver vazio, permite validação HTML5 padrão
-                        if (!newName) {
-                            return;
-                        }
-
-                        // Se o nome for igual ao atual, permite submissão
-                        if (newName.toLowerCase() === currentItemName.toLowerCase()) {
-                            return;
-                        }
-
-                        // Verifica se o nome já existe baseado no tipo do item
-                        let nameExists = false;
-                        let errorMessage = "";
-
-                        if (currentItemKind === "folder") {
-                            nameExists = folderNameExists(newName, currentItemName);
-                            errorMessage = "Já existe uma pasta com esse nome " +
-                                         "nesse diretório.";
-                        } else if (currentItemKind === "file") {
-                            nameExists = fileNameExists(newName, currentItemName);
-                            errorMessage = "Já existe um arquivo com esse nome " +
-                                         "nesse diretório.";
-                        }
-
-                        // Se o nome já existe, previne a submissão
-                        if (nameExists) {
-                            event.preventDefault();
-                            showErrorMessage(renameErrorElement, errorMessage);
-                            // Foca no campo para facilitar correção
-                            renameInput.focus();
-                            renameInput.select();
-                        }
-                    });
-
-                    renameForm.setAttribute(
-                        "data-submit-listener",
-                        "true"
-                    );
-                }
-            }
-
             // Abre o modal de renomear quando clicar no botão
             renameButton.addEventListener("click", (event) => {
                 event.preventDefault();
@@ -868,9 +510,6 @@
                 } else if (kind === "file") {
                     renameForm.action = `/rename-file/${id}/`;
                 }
-                
-                // Inicializa a validação
-                initializeRenameValidation();
                 
                 // Abre o modal
                 renameModal.showModal();

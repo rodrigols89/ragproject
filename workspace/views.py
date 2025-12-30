@@ -143,6 +143,55 @@ def build_breadcrumbs(folder):
     return breadcrumbs
 
 
+def _check_folder_name_exists(
+    user, folder_name, parent_folder, exclude_id=None):
+    """
+    Verifica se já existe uma pasta com o nome especificado no mesmo nível.
+
+    Args:
+        user: Usuário proprietário
+        folder_name: Nome da pasta a verificar
+        parent_folder: Pasta pai (None para raiz)
+        exclude_id: ID da pasta a excluir da verificação (opcional)
+
+    Returns:
+        bool: True se o nome já existe, False caso contrário
+    """
+    query = Folder.objects.filter(
+        owner=user,
+        name__iexact=folder_name,
+        parent=parent_folder,
+        is_deleted=False
+    )
+    if exclude_id:
+        query = query.exclude(id=exclude_id)
+    return query.exists()
+
+
+def _check_file_name_exists(user, file_name, folder, exclude_id=None):
+    """
+    Verifica se já existe um arquivo com o mesmo nome no diretório.
+
+    Args:
+        user: Usuário proprietário
+        file_name: Nome do arquivo a verificar
+        folder: Pasta de destino (None para raiz)
+        exclude_id: ID do arquivo a excluir da verificação (opcional)
+
+    Returns:
+        bool: True se o nome já existe, False caso contrário
+    """
+    query = File.objects.filter(
+        uploader=user,
+        name__iexact=file_name,
+        folder=folder,
+        is_deleted=False
+    )
+    if exclude_id:
+        query = query.exclude(id=exclude_id)
+    return query.exists()
+
+
 @login_required(login_url="/")
 def create_folder(request):
     """
@@ -172,12 +221,7 @@ def create_folder(request):
         if form.is_valid():
             name = form.cleaned_data["name"]
 
-            if Folder.objects.filter(
-                owner=request.user,
-                name__iexact=name,
-                parent=parent_folder,
-                is_deleted=False
-            ).exists():
+            if _check_folder_name_exists(request.user, name, parent_folder):
                 form.add_error(
                     "name",
                     "Já existe uma pasta com esse nome nesse diretório."
@@ -256,12 +300,7 @@ def _generate_unique_filename(user, folder, original_name):
     new_name = original_name
     counter = 1
 
-    while File.objects.filter(
-        uploader=user,
-        folder=folder,
-        name__iexact=new_name,
-        is_deleted=False
-    ).exists():
+    while _check_file_name_exists(user, new_name, folder):
         new_name = f"{base} ({counter}){ext}"
         counter += 1
 
@@ -413,22 +452,12 @@ def _ensure_unique_folder_name(user, parent_folder, folder_name):
     """
     Garante que o nome da pasta seja único no mesmo nível hierárquico.
     """
-    if not Folder.objects.filter(
-        owner=user,
-        parent=parent_folder,
-        name__iexact=folder_name,
-        is_deleted=False
-    ).exists():
+    if not _check_folder_name_exists(user, folder_name, parent_folder):
         return folder_name
 
     base_name = folder_name
     counter = 1
-    while Folder.objects.filter(
-        owner=user,
-        parent=parent_folder,
-        name__iexact=folder_name,
-        is_deleted=False
-    ).exists():
+    while _check_folder_name_exists(user, folder_name, parent_folder):
         folder_name = f"{base_name} ({counter})"
         counter += 1
 
@@ -659,12 +688,7 @@ def _process_file_upload(params: FileUploadParams):
     new_name = file_name
     counter = 1
 
-    while File.objects.filter(
-        uploader=params.user,
-        folder=target_folder,
-        name__iexact=new_name,
-        is_deleted=False
-    ).exists():
+    while _check_file_name_exists(params.user, new_name, target_folder):
         new_name = f"{base} ({counter}){ext}"
         counter += 1
 
@@ -964,23 +988,21 @@ def rename_folder(request, folder_id):
         )
         return redirect(next_url)
 
-    if Folder.objects.filter(
-        owner=request.user,
-        parent=folder.parent,
-        name__iexact=new_name,
-        is_deleted=False,
-    ).exclude(id=folder.id).exists():
+    if _check_folder_name_exists(
+        request.user, new_name, folder.parent, exclude_id=folder.id
+    ):
         messages.error(
             request,
             "Já existe uma pasta com esse nome nesse diretório."
         )
         return redirect(next_url)
 
+    old_name = folder.name
     folder.name = new_name
     folder.save()
     messages.success(
         request,
-        f"Pasta renomeada para '{new_name}'."
+        f"Pasta '{old_name}' foi renomeada para '{new_name}'."
     )
     return redirect(next_url)
 
@@ -1019,23 +1041,21 @@ def rename_file(request, file_id):
         )
         return redirect(next_url)
 
-    if File.objects.filter(
-        uploader=request.user,
-        folder=file.folder,
-        name__iexact=new_name,
-        is_deleted=False,
-    ).exclude(id=file.id).exists():
+    if _check_file_name_exists(
+        request.user, new_name, file.folder, exclude_id=file.id
+    ):
         messages.error(
             request,
             "Já existe um arquivo com esse nome neste diretório."
         )
         return redirect(next_url)
 
+    old_name = file.name
     file.name = new_name
     file.save()
     messages.success(
         request,
-        f"Arquivo renomeado para '{new_name}'."
+        f"Arquivo '{old_name}' foi renomeado para '{new_name}'."
     )
     return redirect(next_url)
 
@@ -1119,12 +1139,9 @@ def move_item(request):  # noqa: PLR0911
             )
 
         # Verifica se já existe uma pasta com o mesmo nome no destino
-        if Folder.objects.filter(
-            owner=request.user,
-            parent=target_folder,
-            name__iexact=folder.name,
-            is_deleted=False,
-        ).exclude(id=folder.id).exists():
+        if _check_folder_name_exists(
+            request.user, folder.name, target_folder, exclude_id=folder.id
+        ):
             error_message = (
                 f"Já existe uma pasta com o nome '{folder.name}' "
                 "no diretório de destino."
@@ -1147,12 +1164,9 @@ def move_item(request):  # noqa: PLR0911
         )
 
         # Verifica se já existe um arquivo com o mesmo nome no destino
-        if File.objects.filter(
-            uploader=request.user,
-            folder=target_folder,
-            name__iexact=file.name,
-            is_deleted=False,
-        ).exclude(id=file.id).exists():
+        if _check_file_name_exists(
+            request.user, file.name, target_folder, exclude_id=file.id
+        ):
             error_message = (
                 f"Já existe um arquivo com o nome '{file.name}' "
                 "no diretório de destino."
